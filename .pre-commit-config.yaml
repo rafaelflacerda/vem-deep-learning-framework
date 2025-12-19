@@ -1,0 +1,105 @@
+# ==============================================================================
+# .pre-commit-config.yaml - Configuração de hooks de pre-commit
+# ==============================================================================
+# Este arquivo define verificações que rodam automaticamente antes de cada commit.
+# Se alguma verificação falhar, o commit é bloqueado até o problema ser corrigido.
+#
+# Instalação (rode uma vez após clonar o repositório):
+#   pre-commit install
+#
+# Uso manual (opcional):
+#   pre-commit run --all-files    # Roda em todos os arquivos
+#   pre-commit run <hook-id>      # Roda um hook específico
+#   pre-commit run                # Roda nos arquivos staged
+#
+# Atualizar versões dos hooks:
+#   pre-commit autoupdate
+# ==============================================================================
+
+# Garante compatibilidade com versão mínima do pre-commit
+minimum_pre_commit_version: '3.0.0'
+
+# Versão do Python a ser usada pelos hooks
+default_language_version:
+  python: python3.11
+
+# ==============================================================================
+# REPOSITÓRIOS DE HOOKS
+# ==============================================================================
+
+repos:
+  # ----------------------------------------------------------------------------
+  # Hooks utilitários básicos
+  # ----------------------------------------------------------------------------
+  # Repositório oficial do pre-commit com hooks genéricos úteis
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Remove espaços em branco no final das linhas
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]  # Preserva quebras de linha em Markdown
+      
+      # Garante que arquivos terminam com uma linha em branco
+      - id: end-of-file-fixer
+      
+      # Valida sintaxe de arquivos YAML
+      - id: check-yaml
+        args: [--unsafe]  # Permite tags YAML customizadas
+      
+      # Valida sintaxe de arquivos TOML
+      - id: check-toml
+      
+      # Impede commits de arquivos grandes (>500KB por padrão)
+      # Importante para não commitar datasets acidentalmente
+      #- id: check-added-large-files
+      #  args: [--maxkb=1000]  # Limite de 1MB
+      
+      # Detecta marcadores de conflito de merge esquecidos
+      - id: check-merge-conflict
+      
+      # Verifica que arquivos JSON são válidos
+      - id: check-json
+      
+      # Impede commit direto na branch main/master
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, master]
+
+  # ----------------------------------------------------------------------------
+  # Ruff - Linter extremamente rápido
+  # ----------------------------------------------------------------------------
+  # Ruff substitui flake8, isort, pyupgrade e outros em uma única ferramenta
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      # Linting: detecta erros e problemas de estilo
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        # --fix: corrige automaticamente o que for possível
+        # --exit-non-zero-on-fix: falha se houve correções (para você revisar)
+      
+      # Formatação: backup do Black, pega algumas coisas adicionais
+      - id: ruff-format
+
+  # ----------------------------------------------------------------------------
+  # Black - Formatador de código
+  # ----------------------------------------------------------------------------
+  # Formata código Python automaticamente seguindo um estilo consistente
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+
+  # ----------------------------------------------------------------------------
+  # mypy - Verificador de tipos estáticos
+  # ----------------------------------------------------------------------------
+  # Verifica consistência de type hints no código
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        # Arquivos/pastas adicionais para o mypy considerar
+        additional_dependencies: []  # Adicione stubs de tipo aqui se necessário
+        args:
+          - --config-file=pyproject.toml  # Usa configuração do pyproject.toml
+        # Só roda em arquivos do pacote src/, não em scripts avulsos
+        files: ^src/

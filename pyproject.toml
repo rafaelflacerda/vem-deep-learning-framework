@@ -1,0 +1,277 @@
+# ==============================================================================
+# pyproject.toml - Arquivo central de configuração do projeto TCC
+# ==============================================================================
+# Este arquivo segue as PEPs 517, 518 e 621 para configuração de projetos Python.
+# Todas as ferramentas (ruff, mypy, pytest, black, coverage) são configuradas aqui, evitando a proliferação de arquivos de configuração separados.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Esta seção define a identidade do projeto: nome, versão, descrição, autores, e as dependências necessárias para o código funcionar. Segye a PEP 621.
+# ------------------------------------------------------------------------------
+[project]
+name = "src"
+version = "0.1.0"
+description = "Adaptive Hybrid VEM-Deep Learning for Structural Problems with Uncertainty Estimation"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [
+    { name = "Rafael Falcão Lacerda", email = "rafael-lacerda@usp.br" }
+]
+keywords = [
+    "deep-learning",
+    "virtual-element-method",
+    "structural-mechanics",
+    "uncertainty-quantification",
+    "adaptive-refinement",
+    "hybrid-methods",
+]
+dependencies = []
+
+# ------------------------------------------------------------------------------
+# [project.optional-dependencies] - Dependências extras agrupadas
+# ------------------------------------------------------------------------------
+# Dependências que não são necessárias para usar o pacote, mas são necessárias para desenvolvê-lo, testá-lo ou documentá-lo.
+# Instalação:
+#   - Apenas dev: uv pip install -e ".[dev]"
+#   - Dev e docs: uv pip install -e ".[dev,docs]"
+#   - Tudo:       uv pip install -e ".[dev,docs]"
+# ------------------------------------------------------------------------------
+[project.optional-dependencies]
+# Ferramentas de desenvolvimento: testes, formatação, linting, type checking
+dev = [
+    "pytest>=7.0.0",           # Framework de testes
+    "pytest-cov>=4.0.0",       # Plugin do pytest para cobertura de código
+    "coverage>=7.0.0",         # Medição de cobertura de testes
+    "black>=24.0.0",           # Formatador de código automático
+    "ruff>=0.4.0",             # Linter rápido (substitui flake8, isort, etc.)
+    "mypy>=1.0.0",             # Verificador de tipos estáticos
+    "pre-commit>=3.0.0",       # Hooks que rodam antes de cada commit
+]
+docs = []
+
+
+# ------------------------------------------------------------------------------
+# [project.urls] - Links relacionados ao projeto
+# ------------------------------------------------------------------------------
+# URLs úteis que aparecem na página do pacote se publicado no PyPI.
+# Para o TCC, serve principalmente como documentação/referência.
+# ------------------------------------------------------------------------------
+# [project.urls]
+# Repository = "https://github.com/seu-usuario/tcc"
+# Documentation = "https://seu-usuario.github.io/tcc"  # Descomentar quando tiver docs
+
+
+# ------------------------------------------------------------------------------
+# [build-system] - Sistema de build (PEP 517/518)
+# ------------------------------------------------------------------------------
+# Define como o pacote é construído quando você roda `pip install` ou `uv pip install`.
+# Usamos uv como backend para manter consistência com o gerenciador de pacotes.
+# ------------------------------------------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# NOTA: Sobre uv_build vs hatchling
+# ----------------------------------
+# O uv_build é o backend nativo do uv, mas ainda é muito novo (lançado em 2024).
+# O hatchling é maduro, bem documentado, e funciona perfeitamente com uv.
+# Usar hatchling como backend não impede você de usar uv como gerenciador.
+# Recomendo hatchling por estabilidade. Se quiser experimentar uv_build no futuro, basta trocar para:
+#   requires = ["uv>=0.4.0"]
+#   build-backend = "uv"
+
+# ==============================================================================
+# CONFIGURAÇÕES DE FERRAMENTAS
+# ==============================================================================
+# As seções [tool.X] configuram cada ferramenta de desenvolvimento.
+# Centralizar aqui evita ter múltiplos arquivos (.flake8, mypy.ini, etc.)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# [tool.ruff] - Configuração do Linter
+# ------------------------------------------------------------------------------
+# Ruff é um linter extremamente rápido escrito em Rust.
+# Ele substitui flake8, isort, pyupgrade, e muitos outros em uma única ferramenta.
+# Documentação: https://docs.astral.sh/ruff/
+# ------------------------------------------------------------------------------
+[tool.ruff]
+# Versão do Python alvo - afeta quais regras são aplicáveis
+target-version = "py311"
+
+# Comprimento máximo de linha (88 é o padrão do Black)
+line-length = 88
+
+# Pastas a serem ignoradas pelo Ruff
+exclude = [
+    ".git",
+    ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "build",
+    "dist",
+    "solver_vem",       # Código C++ do solver, não é Python
+    "notebooks",        # Notebooks têm estilo mais flexível
+]
+
+[tool.ruff.lint]
+# Conjuntos de regras a serem verificadas
+# Cada letra/sigla corresponde a um conjunto de regras:
+select = [
+    "E",      # pycodestyle errors - erros de estilo básicos
+    "W",      # pycodestyle warnings - avisos de estilo
+    "F",      # pyflakes - erros lógicos (variáveis não usadas, imports errados)
+    "I",      # isort - ordenação de imports
+    "UP",     # pyupgrade - sugestões para usar sintaxe Python moderna
+    "B",      # flake8-bugbear - detecção de bugs comuns e práticas ruins
+    "SIM",    # flake8-simplify - simplificações de código
+    "N",      # pep8-naming - convenções de nomenclatura
+]
+
+# Regras específicas a serem ignoradas
+ignore = [
+    "E501",   # Linha muito longa - deixamos o Black cuidar disso
+    "B008",   # Chamada de função em argumento default - comum com Pydantic
+    "N803",   # Nome de argumento não lowercase - comum em notação matemática (E, I, L)
+    "N806",   # Nome de variável não lowercase - idem acima
+]
+
+[tool.ruff.lint.isort]
+# Configuração de como os imports são organizados
+known-first-party = ["src"]  # Módulos do próprio projeto vêm por último
+
+
+# ------------------------------------------------------------------------------
+# [tool.mypy] - Configuração do Type Checker
+# ------------------------------------------------------------------------------
+# mypy verifica se as anotações de tipo no código são consistentes.
+# Isso pega bugs antes de rodar o código: se uma função espera int e você
+# passa str, mypy avisa.
+# Documentação: https://mypy.readthedocs.io/
+# ------------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+
+# Avisos úteis
+warn_return_any = true           # Avisa se função tipada retorna Any
+warn_unused_ignores = true       # Avisa se um "type: ignore" é desnecessário
+warn_redundant_casts = true      # Avisa se um cast é redundante
+
+# Configuração de strictness - começamos permissivos
+# Conforme o projeto amadurece, você pode aumentar o rigor
+disallow_untyped_defs = false    # Permite funções sem type hints (por enquanto)
+disallow_incomplete_defs = false # Permite funções parcialmente tipadas
+check_untyped_defs = true        # Mas verifica o corpo mesmo de funções não tipadas
+
+# Tratamento de imports
+ignore_missing_imports = true    # Não reclama de libs sem stubs de tipo
+                                 # (muitas libs científicas não têm)
+
+# Pastas a ignorar
+exclude = [
+    "build/",
+    "dist/",
+    "solver_vem/",
+]
+
+
+# ------------------------------------------------------------------------------
+# [tool.pytest.ini_options] - Configuração do Framework de Testes
+# ------------------------------------------------------------------------------
+# pytest descobre e executa testes automaticamente.
+# Documentação: https://docs.pytest.org/
+# ------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+# Onde procurar por testes
+testpaths = ["tests"]
+
+# Padrões para descoberta de testes
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Opções padrão quando pytest é executado
+# -v: verbose (mostra nome de cada teste)
+# --tb=short: tracebacks curtos (mais legíveis)
+# -ra: mostra resumo de todos os testes que não passaram
+addopts = "-v --tb=short -ra"
+
+# Marcadores personalizados (evita warnings)
+# Você pode criar seus próprios marcadores para categorizar testes
+markers = [
+    "slow: marca testes que demoram muito (use -m 'not slow' para pular)",
+    "integration: marca testes de integração que dependem de recursos externos",
+]
+
+
+# ------------------------------------------------------------------------------
+# [tool.black] - Configuração do Formatador
+# ------------------------------------------------------------------------------
+# Black formata código automaticamente seguindo um estilo consistente.
+# A filosofia é "opinionated": poucas opções, para todo código ficar igual.
+# Documentação: https://black.readthedocs.io/
+# ------------------------------------------------------------------------------
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+# Pastas/arquivos a serem ignorados
+extend-exclude = '''
+(
+    \.git
+    | \.venv
+    | \.mypy_cache
+    | build
+    | dist
+    | solver_vem
+)
+'''
+
+
+# ------------------------------------------------------------------------------
+# [tool.coverage] - Configuração de Cobertura de Testes
+# ------------------------------------------------------------------------------
+# Coverage mede quanto do seu código é executado pelos testes.
+# Ajuda a identificar código não testado.
+# Documentação: https://coverage.readthedocs.io/
+# ------------------------------------------------------------------------------
+[tool.coverage.run]
+# Qual código medir
+source = ["src"]
+
+# Medir cobertura de branches (if/else), não só linhas
+branch = true
+
+# O que não medir
+omit = [
+    "tests/*",
+    "src/__init__.py",  # Geralmente só tem __version__
+]
+
+[tool.coverage.report]
+# Porcentagem mínima de cobertura para não falhar (opcional, descomente se quiser)
+# fail_under = 80
+
+# Linhas a serem excluídas do relatório de cobertura
+exclude_lines = [
+    "pragma: no cover",           # Comentário explícito para ignorar
+    "if TYPE_CHECKING:",          # Imports apenas para type hints
+    "raise NotImplementedError",  # Métodos abstratos
+    "if __name__ == .__main__.:", # Blocos de execução direta
+    "@abstractmethod",            # Métodos abstratos
+]
+
+# Mostrar linhas não cobertas no relatório
+show_missing = true
+
+
+# ------------------------------------------------------------------------------
+# [tool.hatch] - Configurações específicas do Hatchling (se necessário)
+# ------------------------------------------------------------------------------
+# Por padrão, hatchling inclui todo o pacote. Estas configurações permitem
+# ajustes finos sobre o que é incluído no build.
+# ------------------------------------------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

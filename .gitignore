@@ -1,0 +1,52 @@
+# Ambientes virtuais
+.venv/
+venv/
+env/
+
+# Cache de compilação
+__pycache__/
+*.py[cod]
+
+# Cache de linting e type checking
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Arquivos do macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# WandB e TensorBoard
+wandb/
+tensorboard/
+tb_logs/
+
+# Dados grandes (samples do VEM)
+data/raw/
+data/interim/
+data/processed/
+data/external/
+
+# Arquivos de dados grandes (mas não todos os JSON/PDF)
+*.npz
+*.npy
+*.h5
+*.pt
+*.pth
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Arquivos temporários
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Resultados de experimentos (são gerados, não versionados)
+results/experiments/
+results/checkpoints/
+results/logs/

@@ -1,0 +1,372 @@
+\documentclass[12pt,openright,oneside,a4paper,english,brazil]{abntex2}
+
+% =====================================================================
+% Pacotes e configurações básicas
+% =====================================================================
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{babel}
+\usepackage{lastpage}
+\usepackage{indentfirst}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+% Configurações de margens (ABNT: 3cm esquerda/superior, 2cm direita/inferior)
+\setlrmarginsandblock{3cm}{2cm}{*}
+\setulmarginsandblock{3cm}{2cm}{*}
+\checkandfixthelayout
+
+% Configuração de referências bibliográficas (BibLaTeX com estilo ABNT)
+\usepackage{csquotes}
+\usepackage[backend=biber,style=abnt]{biblatex}
+\addbibresource{referencias.bib}
+
+% =====================================================================
+% Informações do trabalho (usadas na Capa, Folha de rosto, etc.)
+% =====================================================================
+\titulo{Abordagem VEM Híbrida Adaptativa com Deep Learning para Problemas Estruturais 2D com Estimativa de Incerteza e Comparação com PINN}
+\autor{Rafael Falcão Lacerda}
+\local{São Paulo}
+\data{2025}
+\instituicao{
+  Universidade de São Paulo\par
+  Escola Politécnica\par
+  Departamento de Engenharia de Estruturas e Geotécnica (PEF)
+}
+\tipotrabalho{Trabalho de Conclusão de Curso (Graduação em Engenharia Civil)}
+\orientador{Prof. Dr. Rodrigo Provasi}
+\preambulo{
+  Trabalho de Conclusão de Curso apresentado ao Departamento de Engenharia de Estruturas e Geotécnica da Escola Politécnica da Universidade de São Paulo, como parte dos requisitos para a obtenção do título de Engenheiro Civil.\\
+  \vspace*{0.5\onelineskip}
+  \noindent Orientador: \imprimirorientador
+}
+
+% NOTA: O \hypersetup foi movido para depois do \begin{document}
+
+\begin{document}
+
+% =====================================================================
+% CONFIGURAÇÃO DO HYPERREF - DEVE VIR AQUI, APÓS \begin{document}
+% =====================================================================
+\hypersetup{
+    pdfauthor={\imprimirautor},
+    pdftitle={\imprimirtitulo},
+    pdfkeywords={TCC, Engenharia Civil, USP, ABNT},
+    pdfcreator={LaTeX with abnTeX2},
+    linkcolor=black,
+    citecolor=black,
+    filecolor=black,
+    urlcolor=blue
+}
+
+% ============================================================
+% Elementos Pré-textuais
+% ============================================================
+
+% Capa
+\imprimircapa
+
+% Folha de rosto (sem ficha catalográfica)
+\imprimirfolhaderosto
+
+% Resumo em Português
+\setlength{\absparsep}{18pt}
+\begin{resumo}
+Este trabalho tem como objetivo aplicar e avaliar um framework híbrido que integra o Método dos Elementos Virtuais (VEM) com técnicas de Deep Learning para resolver problemas estruturais bidimensionais governados pela teoria da elasticidade linear, incorporando a quantificação de incertezas para aplicações em engenharia estrutural. A metodologia parte da utilização de um solver numérico baseado no VEM, já previamente desenvolvido e validado, para a geração de conjuntos de dados de alta fidelidade, contemplando diferentes configurações estruturais, propriedades materiais e condições de contorno. Esses dados alimentam uma rede neural profunda, também previamente implementada, capaz de aprender o mapeamento entre parâmetros geométricos/materiais e os campos de deslocamento e tensão resultantes, empregando técnicas avançadas como Sobolev training e GradNorm.
+
+A quantificação das incertezas epistemológicas é realizada por meio da técnica de Monte Carlo Dropout durante a inferência, gerando mapas de incerteza espacial que indicam regiões onde o modelo apresenta menor confiança. Estes mapas são utilizados como critério para a realização de refinamento adaptativo local da malha no VEM, retroalimentando o processo com dados mais precisos nas regiões críticas identificadas, dentro de um ciclo adaptativo iterativo. O desempenho do framework híbrido proposto é avaliado por meio de uma comparação direta com Physics-Informed Neural Networks (PINNs), analisando aspectos de precisão, robustez, eficiência computacional e capacidade de generalização.
+\vspace{1em}
+\begin{center}
+\textbf{Palavras-chave}: Método dos Elementos Virtuais; Deep Learning; Quantificação de Incertezas; Elasticidade Linear; Métodos Híbridos
+\end{center}
+\end{resumo}
+
+% Abstract em inglês
+\begin{resumo}[Abstract]
+\begin{otherlanguage*}{english}
+This work aims to apply and evaluate a hybrid framework that integrates the Virtual Element Method (VEM) with Deep Learning techniques to solve two-dimensional structural problems governed by linear elasticity theory, incorporating uncertainty quantification for structural engineering applications. The methodology starts with the use of a VEM-based numerical solver, already previously developed and validated, to generate high-fidelity datasets covering different structural configurations, material properties, and boundary conditions. These data are used to feed a deep neural network, also previously implemented, capable of learning the mapping between geometric/material parameters and the resulting displacement and stress fields, employing advanced techniques such as Sobolev training and GradNorm.
+
+Epistemic uncertainty quantification is performed using the Monte Carlo Dropout technique during inference, generating spatial uncertainty maps that indicate regions where the model presents lower confidence. These maps are used as a criterion for performing local adaptive mesh refinement in the VEM, feeding the process with more accurate data in the critical regions identified, within an iterative adaptive cycle. The performance of the proposed hybrid framework is evaluated through direct comparison with Physics-Informed Neural Networks (PINNs), analyzing aspects such as accuracy, robustness, computational efficiency, and generalization capability.
+  \vspace{1em}
+\begin{center}
+\textbf{Keywords}: Virtual Element Method; Deep Learning; Uncertainty Quantification; Linear Elasticity; Hybrid Methods
+\end{center}
+\end{otherlanguage*}
+\end{resumo}
+
+% Sumário
+\tableofcontents*
+
+\textual
+
+\chapter[Introdução]{Introdução}
+\addcontentsline{toc}{chapter}{Introdução}
+O presente trabalho propõe a aplicação e avaliação de um framework híbrido que integra o Método dos Elementos Virtuais (VEM) com técnicas de Deep Learning para resolver 
+problemas estruturais bidimensionais governados pela teoria da elasticidade linear, incorporando ainda uma abordagem robusta para quantificação de incertezas. A metodologia 
+parte do uso de um solver numérico baseado no VEM, já disponível e validado, que permite a geração de conjuntos de dados de alta fidelidade, abrangendo diferentes 
+configurações estruturais, propriedades materiais e condições de contorno.
+
+Em seguida, emprega-se uma rede neural profunda com arquitetura adaptativa, também já implementada, capaz de aprender o mapeamento entre parâmetros geométricos e materiais 
+e os campos de deslocamento e tensão resultantes. O treinamento dessa rede faz uso de técnicas avançadas como Sobolev training e GradNorm, buscando garantir suavidade, 
+consistência física e balanceamento dos termos da função de perda. A quantificação das incertezas epistemológicas é realizada utilizando a técnica de Monte Carlo Dropout 
+durante a inferência, permitindo a obtenção de mapas de incerteza espacial que indicam regiões de menor confiança nas predições.
+
+Esses mapas de incerteza são utilizados como critério para o refinamento adaptativo da malha no VEM, direcionando novas análises numéricas para as regiões críticas 
+identificadas pela rede neural. O ciclo adaptativo é repetido até que haja convergência dos mapas de incerteza e das soluções numéricas. Além disso, será realizada uma 
+comparação direta do desempenho do framework híbrido proposto com Physics-Informed Neural Networks (PINNs), avaliando vantagens e limitações relativas de cada método em 
+termos de precisão, robustez, eficiência computacional e capacidade de generalização.
+
+Com isso, espera-se avaliar a redução do erro numérico e ganhos de eficiência computacional em relação aos métodos tradicionais (como VEM e FEM puros) e às abordagens 
+baseadas exclusivamente em PINNs. A integração da quantificação de incertezas deve permitir identificar claramente as regiões críticas para refinamento adaptativo, 
+resultando em soluções estruturais mais confiáveis e economicamente viáveis. O trabalho visa, assim, contribuir para o avanço da integração entre métodos numéricos 
+clássicos e técnicas modernas de aprendizado profundo em aplicações práticas de engenharia estrutural.
+
+\chapter{Revisão Bibliográfica}
+A análise computacional de problemas de elasticidade em engenharia estrutural tem evoluído significativamente nas últimas décadas, impulsionada tanto pelo desenvolvimento 
+de métodos numéricos mais sofisticados quanto pelo advento de técnicas de inteligência artificial. Esta revisão bibliográfica traça um panorama dessa evolução, 
+partindo dos métodos numéricos consolidados até as mais recentes abordagens híbridas que combinam o rigor matemático dos métodos tradicionais com a flexibilidade e 
+capacidade adaptativa do aprendizado de máquina.
+
+Inicialmente, apresentam-se os métodos numéricos clássicos que formam a base da 
+análise estrutural computacional moderna, com ênfase no Método dos Elementos Finitos (FEM) e sua evolução natural, o Método dos Elementos Virtuais (VEM). Em seguida, 
+exploram-se os avanços e extensões do VEM que ampliaram suas capacidades para problemas mais complexos e geometrias desafiadoras. A revisão então se volta para as técnicas 
+emergentes de inteligência artificial, particularmente as redes neurais informadas pela física (PINNs) e outras estratégias de deep learning, analisando suas potencialidades 
+e limitações quando aplicadas a problemas de mecânica dos sólidos.
+
+Um aspecto crucial abordado é a quantificação de incertezas em modelos baseados em aprendizado profundo, fundamental para aplicações em engenharia onde a confiabilidade 
+das predições é crítica. Por fim, a revisão culmina na apresentação dos métodos híbridos mais recentes, que buscam sinergias entre a fundamentação física sólida dos métodos 
+numéricos e a adaptabilidade das técnicas de inteligência artificial. Esta progressão estabelece o contexto teórico necessário para compreender os desafios atuais e as 
+oportunidades de pesquisa na interseção entre métodos computacionais clássicos e modernos em engenharia estrutural.
+
+\section{Métodos Numéricos Clássicos em Elasticidade}
+
+\subsection{Método dos Elementos Finitos (FEM)}
+O Método dos Elementos Finitos (FEM) consolidou-se desde meados do século XX como a ferramenta padrão para resolver numericamente problemas de elasticidade linear em 
+2D e 3D. No FEM clássico, o domínio é discretizado em elementos de forma simples (tipicamente triangulares ou quadrilaterais em 2D), sobre os quais são definidas funções 
+de interpolação polinomiais contínuas por partes. Essa abordagem provou-se robusta e eficiente, porém apresenta limitações quando confrontada com geometrias complexas ou 
+discretizações não estruturadas. A geração de malhas de alta qualidade pode ser trabalhosa em domínios com fronteiras curvas ou regiões com fendas e inclusões; além disso, 
+elementos finitos tradicionais sofrem com dificuldade em acoplar malhas de diferentes granulações ou polígonos irregulares sem refinamento global.
+
+\subsection{Método dos Elementos Virtuais (VEM)}
+Nesse contexto, o Método dos Elementos Virtuais (VEM) surgiu como uma generalização do FEM capaz de lidar com malhas poligonais gerais \cite{beirao2013}. 
+No VEM, os elementos podem ter formas poligonais arbitrárias (inclusive não convexas), e o método dispensa a formulação explícita de funções de forma no interior de cada 
+elemento. Em vez disso, o VEM utiliza um espaço de soluções virtuais que reproduz exatamente polinômios até certa ordem e emprega projeções polinomiais para computar as 
+quantidades necessárias, introduzindo termos de estabilização para fechar o sistema \cite{beirao2013}. Assim, mantém-se a consistência e a exatidão em 
+reproduzir campos constantes ou lineares, análogo ao FEM, porém com uma flexibilidade geométrica muito maior.
+
+As comparações iniciais mostraram que, em problemas de elasticidade linear, o VEM alcança taxas de convergência e acurácia similares ao FEM tradicional em malhas 
+estruturadas, ao mesmo tempo em que oferece vantagens significativas em malhas não convencionais \cite{mengolini2019}. Em particular, o VEM facilita o uso de malhas 
+grosseiras com elementos poligonais adaptados a domínios complexos, evitando a necessidade de refinamento global ou elementos degenerados, e permite conectar de forma 
+natural regiões do domínio com discretizações diferentes, algo não trivial no contexto do FEM padrão \cite{mengolini2019}.
+
+\section{Avanços e Extensões no VEM}
+Desde a sua origem, o Método dos Elementos Virtuais tem passado por aprimoramentos e extensões que ampliam seu campo de aplicação.
+
+\subsection{Elementos de Ordem Arbitrária (p-VEM)}
+Um dos desenvolvimentos importantes foi a formulação de elementos virtuais de ordem arbitrária (p-VEM), análogo ao p-FEM, possibilitando aumento de ordem polinomial das 
+funções aproximadoras para ganhar acurácia sem refinamento de malha. Estudos demonstraram que o VEM de alta ordem preserva as propriedades de convergência ótimas e pode 
+superar o FEM de mesma ordem em certas situações devido à sua flexibilidade na escolha de malhas \cite{mengolini2019}.
+
+\subsection{Aplicações a Problemas Não Lineares}
+Além disso, o VEM foi aplicado com sucesso a problemas elastoplásticos e outros comportamentos não lineares de materiais. \textcite{beirao2015}, por exemplo, 
+apresentaram uma formulação de VEM para problemas elasto-inelásticos em malhas poligonais, mostrando que o método pode incorporar algoritmos constitutivos complexos 
+(como relações tensão-deformação não lineares) de forma black-box, mantendo estabilidade e acurácia. Esse resultado evidenciou a versatilidade do VEM para análises 
+estruturais além da elasticidade linear, cobrindo regimes plásticos e possivelmente dano ou fratura, sem perder as vantagens da discretização poligonal.
+
+\subsection{Elementos Virtuais Curvilíneos}
+Outra frente de avanço foi a capacidade de representação geométrica precisa: recentemente foram introduzidos os elementos virtuais curvilíneos, em que as arestas dos 
+polígonos de contorno podem acompanhar bordas curvas do domínio \cite{artioli2021}. Nessa extensão, o espaço de forma virtual é adaptado para incluir todos os 
+movimentos rígidos (como rotações e translações do corpo indeformável), superando uma limitação presente em formulações VEM anteriores que não continham certas componentes 
+lineares necessárias para representar exatemente rotações rígidas \cite{artioli2021}.
+
+Os elementos virtuais curvilíneos permitem aproximar exatamente a geometria de domínios definidos por curvas suaves, eliminando o erro geométrico de aproximação de 
+fronteira que ocorreria caso se usassem arestas retas. Estudos numéricos indicam que, para elementos de ordem superior, essa exatidão geométrica se traduz em ganhos de 
+precisão significativos na solução, quando comparada à versão padrão do VEM com arestas lineares \cite{artioli2021}. Notavelmente, do ponto de vista de implementação, 
+a transição do VEM poligonal padrão para o VEM com arestas curvas requer modificações relativamente modestas no código (essencialmente no cálculo de integrais de elemento 
+e nas funções de forma de bordo), reforçando a viabilidade prática dessa abordagem \cite{artioli2021}.
+
+\section{Inteligência Artificial na Solução de PDEs}
+Paralelamente ao desenvolvimento dos métodos numéricos clássicos como FEM e VEM, a última década testemunhou o surgimento de técnicas de aprendizado profundo aplicadas à 
+solução de equações diferenciais parciais (PDEs) da mecânica dos sólidos.
+
+\subsection{Physics-Informed Neural Networks (PINNs)}
+Entre essas técnicas, destacam-se as chamadas Physics-Informed Neural Networks (PINNs), introduzidas por \textcite{raissi2019}, que consistem em redes neurais treinadas 
+para satisfazer as equações governantes do problema físico. Em uma PINN, a função de perda (loss) é formulada de modo a penalizar as violações da equação de equilíbrio 
+diferencial (por exemplo, as equações de Navier-Cauchy da elasticidade linear) em um conjunto de pontos do domínio, bem como das condições de contorno nos pontos da 
+fronteira. Graças à diferenciação automática disponibilizada por bibliotecas de deep learning, a rede pode calcular as derivadas espaciais necessárias (deformações, 
+tensões etc.) e inserir diretamente na loss o residual do PDE, sem necessidade de malha ou integração numérica tradicional \cite{lu2021}.
+
+Isso torna as PINNs métodos mesh-free e bastante gerais, capazes de lidar com domínios complexos e até problemas inversos ou mal-postos com relativa facilidade – já que 
+dados experimentais ou observações podem ser incorporados naturalmente na função de perda juntamente com as equações físicas. No entanto, apesar de sua flexibilidade, as 
+PINNs apresentam desafios em termos de eficiência e convergência. Estudos têm mostrado que, para problemas diretos bem-postos (isto é, quando se deseja apenas resolver a 
+PDE direta com condições de contorno dadas), os solvers clássicos baseados em malha, como FEM ou VEM, tendem a superar as PINNs em termos de rapidez e robustez numérica 
+\cite{karniadakis2021,lu2021}.
+
+O treinamento de uma PINN pode demandar tempo substancial e poder de computação (particularmente para domínios de dimensão maior ou soluções com gradientes muito 
+pronunciados), e as redes neurais densas padrão sofrem de viés espectral, tendo dificuldade em representar componentes de alta frequência da solução \cite{wang2021}. 
+Por outro lado, as PINNs revelam-se especialmente promissoras em problemas inversos ou mal-postos – por exemplo, identificar parâmetros de um material a partir de dados 
+escassos de deslocamentos ou tensões –, onde métodos clássicos enfrentam dificuldade e onde a integração de dados e física no treinamento dá às PINNs uma vantagem 
+significativa \cite{karniadakis2021}.
+
+Buscando tirar o melhor proveito das PINNs, pesquisadores propuseram melhorias como esquemas de amostragem residual adaptativa ao longo do treinamento, que refinam 
+automaticamente os pontos de colocation em regiões de erro alto \cite{lu2021}, e arquiteturas de rede especializadas (como redes do tipo Fourier ou baseada em wavelets) 
+para contornar o viés espectral. Ainda assim, as PINNs não substituem completamente os métodos numéricos bem estabelecidos no quesito eficiência para problemas diretos, 
+mas representam uma nova ferramenta valiosa, especialmente pela facilidade de incorporar conhecimentos de física e dados no mesmo modelo.
+
+\subsection{Outras Estratégias de Deep Learning}
+Além das PINNs, outras abordagens de deep learning têm sido investigadas para a resolução de PDEs ou para acelerar simulações numéricas. Redes generativas como as 
+GANs (Generative Adversarial Networks) têm sido aplicadas para produzir campos de solução sintéticos que obedecem a certas características estatísticas ou físicas, 
+servindo, por exemplo, para gerar realizações de campos aleatórios de propriedades materiais ou mesmo para aproximar soluções estacionárias de maneira não supervisionada.
+
+Já os autoencoders profundos – redes neurais treinadas para comprimir e reconstruir dados – encontram aplicação em redução de dimensionalidade de problemas parametrizados. 
+Em mecânica estrutural, autoencoders podem ser usados para identificar uma base latente de baixa dimensão que represente deformações ou campos de tensão típicos de uma 
+estrutura; em seguida, uma rede (um decodificador) pode mapear parâmetros de entrada (como cargas, condições de contorno ou propriedades do material) diretamente para 
+esses coeficientes latentes, permitindo predições de campos completos de forma muito mais rápida que uma nova análise via FEM/VEM para cada parâmetro.
+
+Por exemplo, \textcite{liang2018} demonstraram um surrogate model baseado em deep learning capaz de estimar distribuições de tensões em estruturas 2D com alta fidelidade, 
+aprendendo a relação entre as configurações de carregamento e o campo de tensões resultante a partir de dados gerados por simulações por elementos finitos. Esse tipo de 
+modelo substituto treinado pode acelerar significativamente análises paramétricas ou procedimentos de otimização de engenharia, pois após o treinamento ele fornece 
+resultados quase instantaneamente (à custa de um erro de aproximação controlado) em comparação com a resolução repetida de um problema via métodos tradicionais. 
+Tais redes, incluindo também autoencoders variacionais e redes baseadas em transformadores ou convoluções, têm ampliado o leque de ferramentas computacionais, combinando 
+aprendizado estatístico e conhecimento físico para lidar com a alta dimensionalidade e não linearidade inerentes a muitos problemas de engenharia.
+
+\section{Quantificação de Incertezas em Modelos de Deep Learning}
+
+\subsection{Métodos Bayesianos e Heurísticos}
+Um aspecto crítico ao aplicar redes neurais em contextos de engenharia estrutural é a quantificação de incertezas (UQ) nas previsões dos modelos de deep learning. 
+Diferentemente de métodos tradicionais como o FEM, que permitem estimativas de erro via análises de malha (por exemplo, cálculo de erro a posteriori), as redes neurais 
+standard fornecem apenas um valor predito, sem indicação direta de confiança.
+
+Para suprir essa lacuna, diversas técnicas baseadas em estatística Bayesiana ou em métodos heurísticos vêm sendo incorporadas aos modelos de deep learning. 
+\textcite{gal2016} introduziram o conceito de Monte Carlo Dropout, mostrando que ao manter ativo o mecanismo de dropout (desligamento aleatório de neurônios) 
+durante a fase de teste e realizar múltiplas passes estocásticas pela rede, pode-se interpretar a dispersão das predições como uma estimativa de incerteza epistemológica 
+do modelo. Essencialmente, o dropout passa a funcionar como uma aproximação de inferência Bayesiana em redes neurais, onde os pesos efetivamente seguem uma distribuição 
+induzida pelo processo de desligamento aleatório. Essa técnica simples fornece, com baixo custo adicional, intervalos de confiança para as respostas da rede – por exemplo, 
+permitindo ao engenheiro saber se a rede está muito incerta em determinada região do domínio ou condição de carregamento.
+
+De forma semelhante, o DropConnect, que é uma variante do dropout em que os pesos das conexões são zerados aleatoriamente em vez das saídas dos neurônios, também pode ser 
+usado em modo Monte Carlo para estimar incertezas \cite{mobiny2019}. \textcite{mobiny2019} demonstraram que o Monte Carlo DropConnect produz resultados alinhados com 
+a abordagem Bayesiana variacional tradicional, sem aumentar o número de parâmetros ou o custo computacional de forma significativa, tornando-o atrativo para redes 
+profundas grandes.
+
+Além dessas aproximações, pesquisas em redes neurais bayesianas explicitamente vêm sendo conduzidas há décadas, atribuindo distribuições de probabilidade aos pesos e 
+realizando inferência via métodos como variational inference ou Markov Chain Monte Carlo \cite{blundell2015}. Embora teoricamente elegantes e capazes de quantificar 
+de forma mais rigorosa a incerteza, essas abordagens Bayesianas exatas ou variacionais são muito custosas para redes de grande porte empregadas em problemas de 
+engenharia, motivo pelo qual aproximações eficientes como dropout têm maior aceitação prática.
+
+Outra linha "híbrida" para quantificar incertezas em deep learning são os ensembles de modelos: treina-se múltiplas redes neurais independentes (com inicializações ou 
+subconjuntos de dados diferentes) e, ao combinar suas predições, obtém-se não só uma média mais robusta como também a dispersão entre os modelos fornece uma medida da 
+incerteza aleatória do preditor \cite{lakshminarayanan2017}.
+
+\subsection{Importância da Quantificação de Incertezas em Engenharia Estrutural}
+Isso é problemático em aplicações de segurança, onde é crucial saber o grau de confiabilidade de uma previsão de tensão ou deslocamento. Em suma, a quantificação de 
+incerteza em redes neurais hoje constitui um campo ativo, pois é fundamental para que modelos de aprendizado de máquina possam ser adotados com confiança em aplicações 
+estruturais críticas, permitindo identificar quando a predição de um modelo deve ser tratada com cautela ou desencadear refinamentos/adaptações.
+
+\section{Métodos Híbridos: Integração de Deep Learning e Métodos Numéricos}
+Diante dos progressos tanto nos métodos numéricos clássicos (FEM/VEM) quanto nas técnicas de inteligência artificial, uma tendência recente tem sido integrar deep learning 
+com métodos numéricos consagrados, aproveitando as vantagens de ambos em frameworks híbridos. A ideia geral é utilizar conhecimentos ou componentes do método tradicional 
+para guiar o treinamento de um modelo de rede neural, ou vice-versa, usar uma rede neural como componente interno de um método numérico, de forma que se superem limitações 
+isoladas.
+
+No contexto brasileiro, destaca-se o trabalho de \textcite{provasi2025}, que propuseram um framework híbrido para vigas de Euler-Bernoulli usando VEM e redes neurais 
+profundas, estabelecendo as bases para o desenvolvimento de modelos substitutos eficientes e fisicamente consistentes para análise estrutural.
+
+
+\subsection{Elementos Finitos Aprendidos por Deep Learning}
+Por exemplo, \textcite{jung2020} propuseram os chamados "elementos finitos aprendidos por deep learning" (deep learned finite elements), em que redes neurais são incorporadas 
+para gerar as matrizes de deformação (relações entre deslocamentos nodais e deformações) em elementos quadrilaterais de 4 e 8 nós. Nesse esquema, a rede substitui a função 
+de forma explícita, aprendendo a garantir que o elemento possua propriedades desejáveis como movimento de corpo rígido e campos de deformação constantes reproduzidos 
+exatamente, tal qual um elemento finito clássico passaria em testes de patch. Os resultados mostraram que esses elementos aprendidos podem alcançar acurácia superior aos 
+elementos polinomiais tradicionais e oferecem maior adaptabilidade para extensões a elementos de ordem mais alta, tridimensionais ou problemas não lineares, uma vez que a 
+rede pode ser treinada para otimizar o desempenho do elemento em diversos cenários.
+
+Em outro trabalho relacionado, \textcite{jung2022} introduziram o conceito de elemento finito auto-atualizável (self-updated finite element, SUFE), no qual um elemento 
+finito de placa (quatro nós) é enriquecido por um procedimento iterativo baseado em deep learning que atualiza sua rigidez para corrigir erros de discretização. 
+Especificamente, o SUFE usa a rede neural para estimar direções ótimas de flexão dentro do elemento dado um estado de deformação, minimizando fenômenos indesejados como 
+shear locking. Com algumas iterações de atualização interna guiada pela rede, o elemento melhora significativamente sua solução sem necessidade de refinar a malha, passando 
+em testes clássicos de patch test e exibindo excelente desempenho mesmo em malhas grosseiras e distorcidas \cite{jung2022}. Esses exemplos demonstram que o aprendizado 
+profundo pode ser usado para automatizar ou adaptar formulações de elementos finitos, aprimorando a acurácia e eficiência sem alterar o esquema básico de discretização.
+
+\subsection{Deep Energy Method (DEM) e Outras Estratégias Variacionais}
+Outra linha de integração é o desenvolvimento de métodos variacionais híbridos, como o Deep Energy Method (DEM) proposto por \textcite{samaniego2020}. No DEM, em vez de 
+construir uma malha e funções de forma, utiliza-se uma rede neural como função de aproximação para os campos de deslocamento, e a rede é treinada minimizando a energia 
+potencial total do sistema (um princípio variacional de mínima energia, equivalente às equações de equilíbrio em problemas conservativos). Essa abordagem assegura que, 
+ao convergir, a rede satisfaz intrinsecamente as equações de equilíbrio (derivadas como condição de estacionariedade da energia) e as condições de contorno essenciais 
+(impostas diretamente na arquitetura da rede), oferecendo uma solução sem malha e potencialmente mais escalável para problemas complexos de elasticidade não linear.
+
+\textcite{samaniego2020} demonstraram o DEM em problemas de hiperelasticidade finita 2D e 3D, obtendo precisão comparável à do FEM, porém contornando a necessidade de 
+remalhamento em grandes deformações e facilitando a incorporação de domínios com geometrias complexas. Extensões subsequentes desse método \cite{nguyen2021} 
+refinaram aspectos como a integração numérica e a imposição de contornos, bem como aplicaram o DEM em problemas multifísicos, embora desafios permaneçam – por exemplo, 
+tratar condições de contorno de forma robusta e melhorar a convergência do treinamento.
+
+\subsection{Frameworks Híbridos e Perspectivas Futuras}
+Em vez de substituir completamente os métodos clássicos, algumas pesquisas buscam combinar explicitamente solvers numéricos com redes neurais em um laço híbrido. 
+\textcite{meethal2023} propuseram um esquema no qual a rede neural é treinada para produzir um modelo de substituição (surrogate) de alta fidelidade, mas incorpora 
+diretamente as matrizes e operadores do FEM em sua função de perda durante o treinamento. Essencialmente, as equações do FEM (após discretização do domínio e aplicação 
+das condições de contorno) são utilizadas como um construtor de loss para a rede, garantindo que o aprendizado da rede seja physics-conforming (isto é, conforme às leis 
+físicas discretizadas) e que o problema de treinamento seja bem-posto.
+
+Esse híbrido FEM-RNA, por construir-se em torno do problema discreto bem condicionado, mostrou-se altamente eficiente em termos de dados necessários e alcançou melhor 
+desempenho que as PINNs puras em testes de problemas estruturais, obtendo maior acurácia e estabilidade \cite{meethal2023}. Ademais, ao manter o arcabouço do FEM na 
+fase de inferência, o método torna possível estimar o erro de predição de forma quantificável e até integrar módulos de estimativa de incerteza ao usar a rede em conjunto 
+com o solver numérico.
+
+Em suma, esses trabalhos híbridos ilustram o estado atual da arte na confluência entre aprendizado de máquina e métodos numéricos: ao invés de concorrentes, as duas 
+abordagens podem atuar em sinergia. Redes neurais profundas podem oferecer rapidez de predição e adaptatividade, enquanto métodos como FEM ou VEM fornecem fundamentação 
+física sólida e estrutura para garantir confiabilidade. Essa integração já demonstrou ganhos importantes, superando limitações individuais (seja a rigidez de malha fixa 
+no FEM, seja a falta de garantias de convergência e precisão no deep learning puro) e apontando para uma nova geração de ferramentas computacionais em engenharia estrutural. 
+Este panorama de avanços estabelece a base para o trabalho proposto, que busca aliar um esquema adaptativo do VEM com modelos de deep learning munidos de quantificação de 
+incerteza, explorando comparativamente o desempenho desse framework híbrido frente às PINNs e aos métodos clássicos.
+
+\chapter{Objetivos}
+O objetivo geral deste trabalho é desenvolver, implementar e validar um framework híbrido que integra o Método dos Elementos Virtuais (VEM) e técnicas de Deep Learning, com quantificação de incertezas, para a resolução eficiente e precisa de problemas estruturais bidimensionais de elasticidade linear.
+
+Como desdobramentos desse objetivo geral, têm-se os seguintes objetivos específicos:
+
+\begin{itemize}
+    \item Implementar um solver baseado no VEM: Desenvolver um código numérico capaz de resolver problemas estruturais 2D em domínios poligonais, com flexibilidade para diferentes geometrias, propriedades materiais e condições de contorno.
+    \item Gerar bases de dados de alta fidelidade: Utilizar o solver VEM para construir conjuntos de dados variados, contemplando múltiplos cenários estruturais, que servirão de referência para o treinamento dos modelos de Deep Learning.
+    \item Projetar e treinar uma rede neural profunda adaptativa: Desenvolver uma arquitetura de rede neural capaz de aprender a mapear parâmetros geométricos e materiais para campos de deslocamento e tensão, incorporando técnicas de treinamento avançadas como Sobolev training e GradNorm.
+    \item Incorporar quantificação de incerteza: Aplicar técnicas como Monte Carlo Dropout durante a inferência para quantificar incertezas epistemológicas das predições da rede, produzindo mapas espaciais de confiança.
+    \item Desenvolver um ciclo adaptativo de refinamento: Utilizar os mapas de incerteza para guiar o refinamento local da malha no VEM, retroalimentando o processo de geração de dados e treinamento do modelo até atingir convergência.
+    \item Comparar com PINNs: Realizar uma avaliação comparativa do framework híbrido proposto frente às Physics-Informed Neural Networks, analisando aspectos como precisão, robustez, eficiência computacional e capacidade de generalização.
+    \item Analisar o impacto prático da abordagem: Avaliar os ganhos obtidos em termos de redução de erro, eficiência computacional e confiabilidade das soluções estruturais, buscando identificar o potencial de aplicação prática do método em problemas reais de engenharia estrutural.
+\end{itemize}
+
+Esses objetivos visam não apenas desenvolver uma ferramenta inovadora, mas também contribuir para a compreensão do potencial e dos limites da integração entre métodos numéricos clássicos e técnicas modernas de aprendizado profundo no contexto da engenharia.
+
+\chapter{Metodologia}
+
+\section{Descrição Geral da Metodologia Proposta}
+
+A metodologia deste trabalho consiste na integração de um modelo numérico baseado no Método dos Elementos Virtuais (VEM) com técnicas avançadas de Deep Learning para a análise de problemas estruturais bidimensionais de elasticidade linear. Ambos os modelos utilizados – tanto o solver VEM quanto a arquitetura da rede neural – já se encontram previamente desenvolvidos e validados em trabalhos anteriores.
+
+O processo tem início com a extração de conjuntos de dados de alta fidelidade a partir do solver VEM, considerando diferentes cenários de configuração estrutural, propriedades dos materiais e condições de contorno. Esses dados são utilizados para alimentar a rede neural profunda, que tem como objetivo aprender o mapeamento entre os parâmetros de entrada e as distribuições de deslocamentos e tensões resultantes, além de quantificar as incertezas associadas às predições.
+
+A integração entre o solver VEM e o modelo de Deep Learning é feita de modo a explorar as vantagens de ambos: robustez física e precisão do VEM, e capacidade de generalização e rapidez do Deep Learning. Todo o processo é orientado para avaliar a eficiência e a confiabilidade dessa abordagem híbrida frente aos métodos clássicos e às PINNs (Physics-Informed Neural Networks).
+
+\section{Ciclo Adaptativo Proposto}
+
+Um dos diferenciais desta abordagem é a implementação de um ciclo adaptativo orientado por incerteza. O ciclo funciona da seguinte forma:
+\begin{enumerate}
+  \item Geração dos Dados: Inicialmente, o solver VEM é utilizado para gerar um conjunto inicial de dados de referência, cobrindo uma diversidade de casos estruturais.
+  \item Predição e Quantificação de Incerteza: A rede neural, alimentada com esses dados, é empregada para prever campos de deslocamento/tensão em novas situações. Utiliza-se a técnica de Monte Carlo Dropout durante a inferência para estimar as incertezas associadas às predições.
+	\item Identificação de Regiões Críticas: Os mapas de incerteza obtidos são analisados para identificar regiões do domínio onde o modelo apresenta menor confiança.
+	\item Refinamento Adaptativo da Malha: O solver VEM é novamente utilizado, agora realizando um refinamento local da malha especificamente nas regiões identificadas como críticas, gerando dados mais precisos para essas áreas.
+	\item Retroalimentação do Modelo: Os novos dados obtidos no refinamento são reincorporados ao conjunto de treinamento da rede neural, permitindo uma melhoria iterativa do modelo e uma redução progressiva das incertezas.
+\end{enumerate}
+Este ciclo adaptativo é repetido até que haja convergência, ou seja, até que os mapas de incerteza estejam suficientemente reduzidos e as soluções apresentem estabilidade.
+
+A proposta desse ciclo é garantir que os recursos computacionais sejam empregados de forma eficiente, concentrando esforços em regiões realmente críticas, e proporcionando, ao final, soluções estruturais mais confiáveis, robustas e eficientes.
+
+% ============================================================
+% Elementos Pós-textuais
+% ============================================================
+\postextual
+
+\printbibliography[heading=bibintoc,title={Referências}]
+
+\end{document}
