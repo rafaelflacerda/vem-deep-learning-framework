@@ -46,6 +46,6 @@ data/**
 *.swo
 
 # Resultados de experimentos (são gerados, não versionados)
-results/experiments/
-results/checkpoints/
-results/logs/
+results/**
+!results/**/
+!results/**/.gitkeep
