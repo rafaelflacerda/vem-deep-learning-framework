@@ -25,10 +25,9 @@ tensorboard/
 tb_logs/
 
 # Dados grandes (samples do VEM)
-data/raw/
-data/interim/
-data/processed/
-data/external/
+data/**
+!data/**/
+!data/**/.gitkeep
 
 # Arquivos de dados grandes (mas não todos os JSON/PDF)
 *.npz
