@@ -1,51 +1,141 @@
-# Ambientes virtuais
+# =========================================================
+# 1) Python: ambientes virtuais
+# =========================================================
 .venv/
 venv/
 env/
 
-# Cache de compilação
+# =========================================================
+# 2) Python: caches e bytecode
+# =========================================================
 __pycache__/
 *.py[cod]
 
-# Cache de linting e type checking
+# =========================================================
+# 3) Qualidade / testes / coverage
+# =========================================================
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Arquivos do macOS
+# =========================================================
+# 4) Jupyter
+# =========================================================
+.ipynb_checkpoints/
+
+# =========================================================
+# 5) Python packaging / build
+# =========================================================
+dist/
+build/
+*.egg-info/
+
+# =========================================================
+# 6) OS / IDE / editor
+# =========================================================
 .DS_Store
 .AppleDouble
 .LSOverride
+.vscode/
+.idea/
 
-# WandB e TensorBoard
+# =========================================================
+# 7) Temporários e logs
+# =========================================================
+*.tmp
+*.bak
+*.swp
+*.swo
+*.log
+
+# =========================================================
+# 8) ML tooling
+# =========================================================
 wandb/
 tensorboard/
 tb_logs/
 
-# Dados grandes (samples do VEM)
+# =========================================================
+# 9) Dados e resultados grandes
+#    (ignora conteúdo, mantém estrutura com .gitkeep)
+# =========================================================
 data/**
 !data/**/
 !data/**/.gitkeep
 
-# Arquivos de dados grandes (mas não todos os JSON/PDF)
+results/**
+!results/**/
+!results/**/.gitkeep
+
+# Segurança: nunca versionar execuções/saídas
+results/experiments/**
+results/checkpoints/**
+results/figures/**
+results/logs/**
+
+# Tipos de arquivos grandes (mesmo fora de data/)
 *.npz
 *.npy
 *.h5
 *.pt
 *.pth
 
-# Jupyter
-.ipynb_checkpoints/
+# =========================================================
+# 10) Docs
+#     ignora tudo, mantém só estrutura via .gitkeep
+# =========================================================
+docs/**
+!docs/**/
+!docs/**/.gitkeep
 
-# Arquivos temporários
-*.tmp
-*.bak
-*.swp
-*.swo
+# LaTeX gerados automaticamente (útil mesmo com docs/**)
+docs/**/*.aux
+docs/**/*.bcf
+docs/**/*.blg
+docs/**/*.bbl
+docs/**/*.log
+docs/**/*.out
+docs/**/*.run.xml
+docs/**/*.synctex.gz
+docs/**/*.toc
+docs/**/*.fdb_latexmk
+docs/**/*.fls
 
-# Resultados de experimentos (são gerados, não versionados)
-results/**
-!results/**/
-!results/**/.gitkeep
+# =========================================================
+# 11) C/C++ / CMake (geral)
+# =========================================================
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# =========================================================
+# 12) Solver VEM: builds e binários gerados
+# =========================================================
+solver_vem/build/
+solver_vem/bin/
+solver_vem/lib/
+solver_vem/**/build/
+solver_vem/**/CMakeFiles/
+solver_vem/**/CMakeCache.txt
+solver_vem/**/cmake_install.cmake
+solver_vem/**/Makefile
+
+# =========================================================
+# 13) Projeto: arquivos locais
+# =========================================================
+.python-version
+trash/

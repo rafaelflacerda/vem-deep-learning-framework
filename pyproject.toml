@@ -26,7 +26,17 @@ keywords = [
     "adaptive-refinement",
     "hybrid-methods",
 ]
-dependencies = []
+dependencies = [
+    "torch>=2.0.0",
+    "numpy>=1.24.0",
+    "loguru>=0.7.0",
+    "pyyaml>=6.0",
+    "torch-geometric>=2.4.0",
+    #ß"torch-scatter>=2.1.0",
+    "scipy>=1.10.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+]
 
 # ------------------------------------------------------------------------------
 # [project.optional-dependencies] - Dependências extras agrupadas

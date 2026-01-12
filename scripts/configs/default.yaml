@@ -1,0 +1,119 @@
+# =============================================================================
+# CONFIGURAÇÃO PADRÃO PARA EXPERIMENTOS DE TREINAMENTO GNN
+# =============================================================================
+#
+# Este arquivo define todos os hiperparâmetros e configurações necessários
+# para rodar um experimento de treinamento de GNN para predição em vigas 1D.
+#
+# Cada seção corresponde a uma classe de configuração específica em
+# src/config/experiment_config.py. Valores devem respeitar as restrições
+# definidas em cada classe (tipos, ranges, valores permitidos).
+#
+# Para usar este arquivo:
+#   python scripts/train_gnn.py --config-path scripts/configs/default.yaml
+#
+
+# =============================================================================
+# CONFIGURAÇÕES DE DADOS E DATASET
+# =============================================================================
+data:
+  # Método de amostragem para gerar dataset
+  # Opções: "Sobol" (Sobol sequences) ou "LHS" (Latin Hypercube Sampling)
+  sampling_method: Sobol
+
+  # Tamanho do dataset a carregar
+  # Deve ser um dos tamanhos pré-processados disponíveis
+  dataset_size: 100000
+
+  # Fração dos dados reservada para validação (0.0 a 1.0)
+  # Exemplo: 0.30 significa 30% para validação, 70% para treino
+  val_split: 0.30
+
+  # Tipo de normalização para features e target
+  # Opções: "standard" (StandardScaler), "minmax" (MinMaxScaler), "none"
+  scaler_type: minmax
+
+  # Pasta contendo o dataset (correspondente ao máximo deslocamento normalizado)
+  # Exemplo: "rho_0.010" para rho_max = 0.010
+  rho_folder: "rho_0.010"
+
+# =============================================================================
+# CONFIGURAÇÕES DA ARQUITETURA DO MODELO GNN
+# =============================================================================
+model:
+  # Dimensão de entrada (número de features por nó)
+  # Deve corresponder ao número de features geradas no preprocessing
+  input_dim: 12
+
+  # Dimensão do espaço latente (hidden representations)
+  # Controla a capacidade de aprendizado do modelo
+  # Valores comuns: 32, 64, 128, 256
+  hidden_dim: 64
+
+  # Dimensão de saída
+  # 1 para predição de deslocamento vertical em vigas 1D
+  output_dim: 1
+
+  # Número de camadas de message passing (profundidade da GNN)
+  # Mais camadas = maior receptive field mas mais complexidade
+  num_layers: 6
+
+  # Taxa de dropout para regularização (0.0 a 0.9)
+  # Aplicado em cada camada para evitar overfitting
+  # Também usado para MC Dropout durante avaliação (estimação de incerteza)
+  dropout: 0.1
+
+# =============================================================================
+# CONFIGURAÇÕES DE TREINAMENTO E OTIMIZAÇÃO
+# =============================================================================
+training:
+  # Número de épocas de treinamento
+  epochs: 500
+
+  # Tamanho do batch de treinamento
+  batch_size: 64
+
+  # Taxa de aprendizado (learning rate)
+  # Controla o tamanho dos passos na otimização
+  # Valores típicos: 1e-4 a 1e-2
+  learning_rate: 5.0e-4
+
+  # Regularização L2 (weight decay)
+  # Penaliza pesos grandes para evitar overfitting
+  weight_decay: 1.0e-4
+
+  # Tipo de função de perda
+  # Opções: "mse" (Mean Squared Error) ou "huber" (Huber Loss)
+  # MSE é mais sensível a outliers; Huber é mais robusto
+  loss_type: mse
+
+  # Parâmetro delta para Huber Loss (ignorado se loss_type="mse")
+  # Define o ponto onde Huber muda de quadrático para linear
+  huber_delta: 1.0
+
+# =============================================================================
+# CONFIGURAÇÕES DE AVALIAÇÃO E VISUALIZAÇÃO
+# =============================================================================
+evaluation:
+  # Número de forward passes para estimar incerteza via MC Dropout
+  # Maior valor = melhor estimativa mas mais lento
+  # Valores típicos: 30-100
+  mc_samples: 50
+
+  # Número de perfis individuais a visualizar nos gráficos
+  # Um perfil = deslocamentos ao longo do comprimento da viga
+  n_profile_samples: 6
+
+# =============================================================================
+# CONFIGURAÇÕES DE VALIDAÇÃO CRUZADA
+# =============================================================================
+
+# Modo de validação
+# "fixed": split fixo entre treino e validação (mais rápido para debug)
+# "kfold": k-fold cross-validation (mais robusto, exige mais tempo)
+cv_mode: fixed
+
+# Número de folds para k-fold cross-validation
+# Ignorado se cv_mode="fixed"
+# Valores típicos: 5 ou 10
+n_folds: 5

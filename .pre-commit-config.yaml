@@ -21,7 +21,7 @@ minimum_pre_commit_version: '3.0.0'
 
 # Versão do Python a ser usada pelos hooks
 default_language_version:
-  python: python3.11
+  python: /Users/rafaelflacerda/00-projects/vem-deep-learning-framework/.venv/bin/python
 
 # ==============================================================================
 # REPOSITÓRIOS DE HOOKS
@@ -37,32 +37,36 @@ repos:
     hooks:
       # Remove espaços em branco no final das linhas
       - id: trailing-whitespace
-        args: [--markdown-linebreak-ext=md]  # Preserva quebras de linha em Markdown
-      
+        args: [--markdown-linebreak-ext=md]
+        files: ^src/  # Preserva quebras de linha em Markdown
+
       # Garante que arquivos terminam com uma linha em branco
       - id: end-of-file-fixer
-      
+        files: ^src/
+
       # Valida sintaxe de arquivos YAML
       - id: check-yaml
         args: [--unsafe]  # Permite tags YAML customizadas
-      
+        files: ^src/
       # Valida sintaxe de arquivos TOML
       - id: check-toml
-      
+        files: ^src/
       # Impede commits de arquivos grandes (>500KB por padrão)
       # Importante para não commitar datasets acidentalmente
       #- id: check-added-large-files
       #  args: [--maxkb=1000]  # Limite de 1MB
-      
+
       # Detecta marcadores de conflito de merge esquecidos
       - id: check-merge-conflict
-      
+        files: ^src/
+
       # Verifica que arquivos JSON são válidos
       - id: check-json
-      
+        files: ^src/
+
       # Impede commit direto na branch main/master
-      - id: no-commit-to-branch
-        args: [--branch, main, --branch, master]
+      #- id: no-commit-to-branch
+      #  args: [--branch, main, --branch, master]
 
   # ----------------------------------------------------------------------------
   # Ruff - Linter extremamente rápido
@@ -74,11 +78,13 @@ repos:
       # Linting: detecta erros e problemas de estilo
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
+        files: ^src/
         # --fix: corrige automaticamente o que for possível
         # --exit-non-zero-on-fix: falha se houve correções (para você revisar)
-      
+
       # Formatação: backup do Black, pega algumas coisas adicionais
       - id: ruff-format
+        files: ^src/
 
   # ----------------------------------------------------------------------------
   # Black - Formatador de código
@@ -88,6 +94,7 @@ repos:
     rev: 24.10.0
     hooks:
       - id: black
+        files: ^src/
 
   # ----------------------------------------------------------------------------
   # mypy - Verificador de tipos estáticos

@@ -1,0 +1,35 @@
+# Configuração de features e targets para preprocessamento
+
+features:
+  # Features globais (mesmas para todos os nós)
+  global:
+    - E
+    - I
+    - L
+    - q
+
+  # Features derivadas globais (calculadas a partir das globais)
+  global_derived:
+    - EI              # E * I
+    - q_scale         # q * L**4 / (E * I)
+    - q_over_EI       # q / (E * I)
+
+  # Features por nó (uma por nó, extraídas de node_coords)
+  per_node:
+    - x               # Posição absoluta
+    - x_normalized    # x / L
+    - x_normalized_2  # (x / L)²
+    - x_normalized_3  # (x / L)³
+    - x_normalized_4  # (x / L)⁴
+
+targets:
+  - vertical_displacements
+
+dataset_sizes:
+  - 10
+  - 100
+  - 250
+  - 1000
+  - 2500
+  - 10000
+  - 25000

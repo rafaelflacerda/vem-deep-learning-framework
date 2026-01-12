@@ -1,0 +1,232 @@
+
+==================================================
+MESH INFORMATION
+==================================================
+Nodes (4 total):
+  Node 0: (0.0, 0.0)
+  Node 1: (1.0, 0.0)
+  Node 2: (1.0, 1.0)
+  Node 3: (0.0, 1.0)
+
+Elements (1 total):
+  Element 0: [0, 1, 2, 3]
+
+Mesh visualization:
+8 ---- 7 ---- 6
+|      |      |
+| E3   | E2   |
+|      |      |
+3 ---- 2 ---- 5
+|      |      |
+| E0   | E1   |
+|      |      |
+0 ---- 1 ---- 4
+
+================================================================================
+RUNNING ALL BOUNDARY CONDITION TESTS
+================================================================================
+
+================================================================================
+RUNNING DIRICHLET BOUNDARY CONDITION TESTS
+================================================================================
+
+============================================================
+TEST: Simple Dirichlet Boundary Condition Application
+============================================================
+Created test mesh:
+  Nodes: 4
+  Elements: 1
+  Polynomial order: 1
+✓ Boundary handler initialized successfully
+
+1. Testing homogeneous Dirichlet condition:
+  ✓ Added homogeneous Dirichlet (u = 0) on entire boundary
+
+2. Testing non-homogeneous Dirichlet condition:
+  ✓ Added linear Dirichlet (u = x + y) on entire boundary
+
+3. Testing Dirichlet application to VEM system:
+  ✓ VEM solver created
+  Original system properties:
+    Matrix size: 4x4
+    K non-zeros: 0
+    M non-zeros: 0
+  ✓ Dirichlet boundary conditions applied
+  Matrix modification check: ✓ Modified
+
+4. Testing boundary detection:
+    Boundary vertex 0 at (0.0, 0.0)
+    Boundary vertex 1 at (1.0, 0.0)
+    Boundary vertex 2 at (1.0, 1.0)
+    Boundary vertex 3 at (0.0, 1.0)
+  ✓ Found 4 boundary vertices
+
+5. Testing regional boundary conditions:
+  ✓ Added regional boundary conditions (LEFT: u=1, RIGHT: u=2)
+  ✓ Regional boundary conditions applied
+
+✓ All Dirichlet boundary condition tests completed successfully!
+
+================================================================================
+✅ ALL DIRICHLET BOUNDARY CONDITION TESTS PASSED!
+================================================================================
+
+================================================================================
+RUNNING NEUMANN BOUNDARY CONDITION TESTS
+================================================================================
+
+============================================================
+TEST: Simple Neumann Boundary Condition Application
+============================================================
+✓ Created test mesh: 4 nodes, 1 element
+✓ Initialized boundary handler
+
+--- Test 1: Homogeneous Neumann Conditions ---
+✓ Added homogeneous Neumann condition (∂u/∂n = 0)
+
+--- Test 2: Constant Flux Neumann Conditions ---
+✓ Added constant flux Neumann condition (∂u/∂n = 1)
+
+--- Test 3: Variable Flux Neumann Conditions ---
+✓ Added variable flux Neumann condition (∂u/∂n = x + y)
+
+--- Test 4: Regional Neumann Conditions ---
+✓ Added regional Neumann conditions:
+  - LEFT: ∂u/∂n = 2.0
+  - RIGHT: ∂u/∂n = -1.0
+  - TOP: ∂u/∂n = 0.0
+  - BOTTOM: ∂u/∂n = 0.5
+
+--- Test 5: VEM System Integration ---
+✓ Retrieved VEM system matrices
+✓ Created load vector (size: 4)
+✓ Applied Neumann boundary conditions to load vector
+  Load vector after Neumann conditions:
+    F[0] = 1.2
+    F[1] = -0.2
+    F[2] = -0.5
+    F[3] = 1.0
+
+============================================================
+✅ NEUMANN BOUNDARY CONDITION TEST PASSED!
+============================================================
+
+============================================================
+TEST: Neumann Flux Integration
+============================================================
+✓ Created test mesh: 4 nodes, 1 element
+✓ Initialized boundary handler
+
+--- Testing: Constant flux (1.0) ---
+  Total flux contribution: 4.0
+  Expected: 4.0, Error: 0.0
+  ✓ Flux integration accurate!
+
+--- Testing: Linear flux (x) ---
+  Total flux contribution: 2.0
+
+--- Testing: Linear flux (y) ---
+  Total flux contribution: 2.0
+
+--- Testing: Quadratic flux (x²) ---
+  Total flux contribution: 1.7
+
+--- Testing: Sinusoidal flux ---
+  Total flux contribution: 0.0
+
+============================================================
+✅ NEUMANN FLUX INTEGRATION TEST PASSED!
+============================================================
+
+============================================================
+TEST: Mixed Dirichlet-Neumann Boundary Conditions
+============================================================
+✓ Created test mesh: 4 nodes, 1 element
+✓ Initialized boundary handler
+
+--- Mixed Boundary Conditions Setup ---
+✓ Added mixed boundary conditions:
+  - LEFT: u = 0.0 (Dirichlet)
+  - RIGHT: u = 1.0 (Dirichlet)
+  - TOP: ∂u/∂n = 0.0 (Neumann)
+  - BOTTOM: ∂u/∂n = 0.0 (Neumann)
+
+--- VEM System Integration ---
+✓ Retrieved VEM system matrices
+✓ Applied Neumann boundary conditions
+✓ Applied Dirichlet boundary conditions
+
+--- Final System Properties ---
+  System size: 4×4
+  Stiffness matrix non-zeros: 4
+  Mass matrix non-zeros: 4
+  Load vector non-zero entries: 2
+
+============================================================
+✅ MIXED BOUNDARY CONDITIONS TEST PASSED!
+============================================================
+
+================================================================================
+✅ ALL NEUMANN BOUNDARY CONDITION TESTS PASSED!
+================================================================================
+
+================================================================================
+🎉 ALL BOUNDARY CONDITION TESTS COMPLETED SUCCESSFULLY!
+================================================================================
+
+================================================================================
+COMPREHENSIVE LOAD VECTOR TESTS
+================================================================================
+
+=== SOURCE PROJECTION COMPUTATION TEST ===
+Order: 1, Element vertices: 3
+
+--- Test 1: Constant Source Function ---
+  Projection coefficients size: 1
+  First coefficient (constant): 2.0
+  Expected coefficient: 1.0
+  Error: 1.0
+  Constant source projection: FAIL
+
+--- Test 3: Non-polynomial Source Function ---
+  Non-polynomial source projection: PASS
+
+=== SOURCE PROJECTION COMPUTATION TEST COMPLETED ===
+
+=== SOURCE PROJECTION POLYNOMIAL EXACTNESS TEST ===
+Order: 2, Element vertices: 3
+
+--- Test: Constant (1) ---
+  Projection coefficients: 1.0
+  Polynomial exactness: PASS
+
+--- Test: Linear (x) ---
+  Projection coefficients: 0.5
+  Polynomial exactness: PASS
+
+--- Test: Linear (y) ---
+  Projection coefficients: 0.3
+  Polynomial exactness: PASS
+
+=== SOURCE PROJECTION POLYNOMIAL EXACTNESS TEST COMPLETED ===
+
+=== SOURCE PROJECTION CONSISTENCY TEST ===
+Order: 1, Element vertices: 3
+
+--- Test 1: Projection Consistency ---
+  Projection consistency: PASS
+
+--- Test 2: Mass Matrix Conditioning ---
+  Mass matrix condition number: 67.5
+  Mass matrix conditioning: PASS
+
+--- Test 3: Orthogonality Conditions ---
+  Orthogonality conditions: PASS
+
+=== SOURCE PROJECTION CONSISTENCY TEST COMPLETED ===
+
+=== LOCAL LOAD VECTOR COMPUTATION TEST ===
+Order: 1, Element vertices: 3
+
+--- Test 1: Constant Source Load Vector ---
+Assertion failed: (rows == this->rows() && cols == this->cols() && "DenseBase::resize() does not actually allow to resize."), function resize, file DenseBase.h, line 262.
