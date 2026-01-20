@@ -153,6 +153,58 @@ class NoScaler(BaseScaler):
 
     def load_state_dict(self, state: dict) -> None:
         pass
+    
+class RobustScaler(BaseScaler):
+    """
+    Normaliza usando mediana e IQR (intervalo interquartil).
+    
+    z = (x - median) / IQR
+    
+    Muito mais robusto a outliers que StandardScaler.
+    IQR = Q3 - Q1 (percentil 75 - percentil 25)
+    """
+
+    def __init__(self, eps: float = 1e-8):
+        self.eps = eps
+        self.median: torch.Tensor | None = None
+        self.iqr: torch.Tensor | None = None
+
+    def fit(self, data: torch.Tensor) -> "RobustScaler":
+        """
+        Calcula mediana e IQR.
+
+        Args:
+            data: Tensor de shape (n_samples, n_features) ou (n_samples, n_nodes, n_features)
+        """
+        if data.dim() == 3:
+            # (n_samples, n_nodes, n_features) -> flatten
+            flat = data.reshape(-1, data.shape[-1])
+        else:
+            flat = data
+
+        self.median = torch.median(flat, dim=0).values
+        q25 = torch.quantile(flat, 0.25, dim=0)
+        q75 = torch.quantile(flat, 0.75, dim=0)
+        self.iqr = q75 - q25
+        return self
+
+    def transform(self, data: torch.Tensor) -> torch.Tensor:
+        if self.median is None or self.iqr is None:
+            raise RuntimeError("Scaler não foi fitado. Chame fit() primeiro.")
+        return (data - self.median) / (self.iqr + self.eps)
+
+    def inverse_transform(self, data: torch.Tensor) -> torch.Tensor:
+        if self.median is None or self.iqr is None:
+            raise RuntimeError("Scaler não foi fitado. Chame fit() primeiro.")
+        return data * (self.iqr + self.eps) + self.median
+
+    def state_dict(self) -> dict:
+        return {"median": self.median, "iqr": self.iqr, "eps": self.eps}
+
+    def load_state_dict(self, state: dict) -> None:
+        self.median = state["median"]
+        self.iqr = state["iqr"]
+        self.eps = state.get("eps", 1e-8)
 
 
 def get_scaler(name: str, **kwargs) -> BaseScaler:
@@ -160,7 +212,7 @@ def get_scaler(name: str, **kwargs) -> BaseScaler:
     Factory function para criar scalers pelo nome.
 
     Args:
-        name: Nome do scaler ('standard', 'minmax', 'none')
+        name: Nome do scaler ('standard', 'minmax', 'robust', 'none')
         **kwargs: Argumentos extras para o scaler (ex: eps)
 
     Returns:
@@ -169,6 +221,7 @@ def get_scaler(name: str, **kwargs) -> BaseScaler:
     scalers = {
         "standard": StandardScaler,
         "minmax": MinMaxScaler,
+        "robust": RobustScaler,  # <-- ADICIONAR ESTA LINHA
         "none": NoScaler,
     }
     if name not in scalers:

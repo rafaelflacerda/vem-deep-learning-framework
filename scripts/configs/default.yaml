@@ -23,7 +23,7 @@ data:
 
   # Tamanho do dataset a carregar
   # Deve ser um dos tamanhos pré-processados disponíveis
-  dataset_size: 100000
+  dataset_size: 2500
 
   # Fração dos dados reservada para validação (0.0 a 1.0)
   # Exemplo: 0.30 significa 30% para validação, 70% para treino
@@ -35,7 +35,7 @@ data:
 
   # Pasta contendo o dataset (correspondente ao máximo deslocamento normalizado)
   # Exemplo: "rho_0.010" para rho_max = 0.010
-  rho_folder: "rho_0.010"
+  rho_folder: "rho_0.010_E_fixed_102_elements"
 
 # =============================================================================
 # CONFIGURAÇÕES DA ARQUITETURA DO MODELO GNN
@@ -43,7 +43,7 @@ data:
 model:
   # Dimensão de entrada (número de features por nó)
   # Deve corresponder ao número de features geradas no preprocessing
-  input_dim: 12
+  input_dim: 10
 
   # Dimensão do espaço latente (hidden representations)
   # Controla a capacidade de aprendizado do modelo
@@ -56,7 +56,7 @@ model:
 
   # Número de camadas de message passing (profundidade da GNN)
   # Mais camadas = maior receptive field mas mais complexidade
-  num_layers: 6
+  num_layers: 9
 
   # Taxa de dropout para regularização (0.0 a 0.9)
   # Aplicado em cada camada para evitar overfitting
@@ -68,10 +68,10 @@ model:
 # =============================================================================
 training:
   # Número de épocas de treinamento
-  epochs: 500
+  epochs: 250
 
   # Tamanho do batch de treinamento
-  batch_size: 64
+  batch_size: 512
 
   # Taxa de aprendizado (learning rate)
   # Controla o tamanho dos passos na otimização
@@ -85,7 +85,7 @@ training:
   # Tipo de função de perda
   # Opções: "mse" (Mean Squared Error) ou "huber" (Huber Loss)
   # MSE é mais sensível a outliers; Huber é mais robusto
-  loss_type: mse
+  loss_type: huber
 
   # Parâmetro delta para Huber Loss (ignorado se loss_type="mse")
   # Define o ponto onde Huber muda de quadrático para linear

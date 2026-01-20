@@ -13,6 +13,27 @@ import torch
 import torch.nn as nn
 from torch_geometric.nn import GCNConv
 
+def _get_activation(activation_str: str) -> nn.Module:
+    """
+    Retorna o módulo de activation baseado em string.
+    
+    Suporta: relu, silu, gelu, tanh, selu.
+    """
+    activation_str = activation_str.lower()
+    
+    if activation_str == "relu":
+        return nn.ReLU()
+    elif activation_str == "silu":
+        return nn.SiLU()
+    elif activation_str == "gelu":
+        return nn.GELU()
+    elif activation_str == "tanh":
+        return nn.Tanh()
+    elif activation_str == "selu":
+        return nn.SELU()
+    else:
+        raise ValueError(f"Activation desconhecida: {activation_str}")
+
 
 class BeamGNN(nn.Module):
     """
@@ -33,18 +54,22 @@ class BeamGNN(nn.Module):
         output_dim: int = 1,
         num_layers: int = 4,
         dropout: float = 0.1,
+        activation: str = "relu",
     ):
         super().__init__()
+        
+        self.activation = _get_activation(activation)
 
         self.dropout_rate = dropout
 
         # Encoder: features brutas -> espaço latente
+        
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
+            self.activation,  # <-- USE AQUI
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
+            self.activation,  # <-- USE AQUI TAMBÉM
         )
 
         # Processor: camadas de message passing
@@ -57,7 +82,7 @@ class BeamGNN(nn.Module):
         # Decoder: espaço latente -> predição
         self.decoder = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
+            self.activation,
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, output_dim),
         )
@@ -79,7 +104,7 @@ class BeamGNN(nn.Module):
         # Processor (message passing com skip connections)
         for conv in self.convs:
             h_new = conv(h, edge_index)
-            h_new = torch.relu(h_new)
+            h_new = self.activation(h_new)
             h_new = self.conv_dropout(h_new)
             h = h + h_new  # Skip connection
 

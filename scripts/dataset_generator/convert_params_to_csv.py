@@ -3,7 +3,7 @@
 from src.data.io import params_json_to_csv
 from src.paths import paths
 
-PARAMS_DIR = paths.data.raw / "Sobol" / "params" / "rho_0.010"
+PARAMS_DIR = paths.data.raw / "Sobol" / "params" / "rho_0.010_E_fixed_102_elements"
 
 
 def main():

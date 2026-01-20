@@ -1137,6 +1137,7 @@ def plot_beam_cases_comparison(
     cases_data: list[dict],
     figsize: tuple[float, float] = (15, 5),
     scale_factor: float = 1.0,
+    scale_y: float = 1000.0,
     undeformed_color: str = "black",
     vem_color: str = "#037A68",
     nn_color: str = "#326273",
@@ -1179,7 +1180,7 @@ def plot_beam_cases_comparison(
         # Viga indeformada
         ax.plot(
             positions,
-            np.zeros_like(positions),
+            np.zeros_like(positions) * scale_y,
             color=undeformed_color,
             linewidth=1.5,
             linestyle="-",
@@ -1189,7 +1190,7 @@ def plot_beam_cases_comparison(
         # Solução VEM
         ax.plot(
             positions,
-            y_vem * scale_factor,
+            y_vem * scale_factor * scale_y,
             color=vem_color,
             linewidth=2,
             linestyle="-",
@@ -1199,7 +1200,7 @@ def plot_beam_cases_comparison(
         # Predição NN
         ax.plot(
             positions,
-            y_nn * scale_factor,
+            y_nn * scale_factor * scale_y,
             color=nn_color,
             linewidth=2,
             linestyle="--",
@@ -1208,8 +1209,8 @@ def plot_beam_cases_comparison(
 
         # Banda de incerteza
         if y_nn_std is not None:
-            lower = (y_nn - n_sigma * y_nn_std) * scale_factor
-            upper = (y_nn + n_sigma * y_nn_std) * scale_factor
+            lower = (y_nn - n_sigma * y_nn_std) * scale_factor * scale_y
+            upper = (y_nn + n_sigma * y_nn_std) * scale_factor * scale_y
             ax.fill_between(
                 positions,
                 lower,
@@ -1235,7 +1236,7 @@ def plot_beam_cases_comparison(
             )
 
     # Ylabel apenas no primeiro subplot
-    axes[0].set_ylabel("Deslocamento (m)")
+    axes[0].set_ylabel("Deslocamento (mm)")
 
     # Legenda compartilhada
     handles, labels = axes[0].get_legend_handles_labels()

@@ -24,20 +24,20 @@ from src.paths import ensure_dir, paths
 # =============================================================================
 
 # Número de amostras válidas desejadas (após o filtro)
-N_TARGET = 250
+N_TARGET = 2500
 
 # Tamanho do bloco Sobol (deve ser potência de 2)
 BLOCK_SIZE = 1024
 
 # Limite máximo de tentativas para evitar loop infinito
-MAX_ITERATIONS = 2000
+MAX_ITERATIONS = 25000
 
 # Ranges dos parâmetros
 # E e I: definidos em escala log10 (ex: [9, 11] significa 10^9 a 10^11 Pa)
 # L: definido em escala linear
 # q: definido em escala log10
 PARAM_RANGES = {
-    "E_log10": (10.0, 11.5),  # 10^10 a 10^11.5 Pa (10 GPa a ~316 GPa)
+    #"E_log10": (10.84, 11.32),  # Alumínio (70 GPa) até aço (210 GPa)
     "I_log10": (-6.0, -3.0),  # 10^-6 a 10^-3 m^4
     "L": (1.0, 10.0),  # 1 a 10 m
     "q_log10": (2.0, 5.0),  # 10^2 a 10^5 N/m
@@ -45,6 +45,8 @@ PARAM_RANGES = {
 
 # Critério de pequenos deslocamentos: rho = w_max/L < RHO_MAX
 RHO_MAX = 0.01
+
+E_fixed = 200e9
 
 # Seed para reprodutibilidade (None para não fixar)
 SEED = 42
@@ -62,21 +64,21 @@ def transform_e_i_l(samples: np.ndarray, ranges: dict) -> np.ndarray:
     Colunas de retorno: [E, I, L]
     """
     n = samples.shape[0]
-    out = np.zeros((n, 3), dtype=np.float64)
+    out = np.zeros((n, 2), dtype=np.float64)
 
     # E: escala log
-    E_log_min, E_log_max = ranges["E_log10"]
-    E_log = E_log_min + samples[:, 0] * (E_log_max - E_log_min)
-    out[:, 0] = 10**E_log
+    # E_log_min, E_log_max = ranges["E_log10"]
+    # E_log = E_log_min + samples[:, 0] * (E_log_max - E_log_min)
+    # out[:, 0] = 10**E_log
 
     # I: escala log
     I_log_min, I_log_max = ranges["I_log10"]
-    I_log = I_log_min + samples[:, 1] * (I_log_max - I_log_min)
-    out[:, 1] = 10**I_log
+    I_log = I_log_min + samples[:, 0] * (I_log_max - I_log_min)
+    out[:, 0] = 10**I_log
 
     # L: escala linear
     L_min, L_max = ranges["L"]
-    out[:, 2] = L_min + samples[:, 2] * (L_max - L_min)
+    out[:, 1] = L_min + samples[:, 1] * (L_max - L_min)
 
     return out
 
@@ -122,7 +124,7 @@ def generate_valid_samples(
         - Array (n_target, 4) com colunas [E, I, L, q]
         - Dicionário com estatísticas da geração
     """
-    sampler = Sobol(d=4, scramble=True, seed=seed)
+    sampler = Sobol(d=3, scramble=True, seed=seed)
 
     q_log_min, q_log_max = ranges["q_log10"]
     q_min = 10**q_log_min
@@ -138,14 +140,14 @@ def generate_valid_samples(
         total_generated += block_size
 
         # Usa 3 dimensões para (E, I, L) e a 4ª como "u" para amostrar q
-        eil = transform_e_i_l(raw_block[:, :3], ranges)
-        E = eil[:, 0]
-        I = eil[:, 1]
-        L = eil[:, 2]
-        u = raw_block[:, 3]
+        eil = transform_e_i_l(raw_block[:, :2], ranges)
+        #E = eil[:, 0]
+        I = eil[:, 0]
+        L = eil[:, 1]
+        u = raw_block[:, 2]
 
         # Limite por rho: q < 8*rho_max*E*I/L^3
-        q_max_case = 8.0 * rho_max * E * I / (L**3)
+        q_max_case = 8.0 * rho_max * E_fixed * I / (L**3)
 
         # Limite final: não pode passar do q_max_global
         q_max_effective = np.minimum(q_max_global, q_max_case)
@@ -159,7 +161,8 @@ def generate_valid_samples(
             q = sample_q_log_uniform(u[mask], q_min=q_min, q_max=q_max_effective[mask])
 
             # Monta amostras [E, I, L, q]
-            samples_block = np.column_stack([E[mask], I[mask], L[mask], q])
+            E_array = np.full(len(I[mask]), E_fixed)
+            samples_block = np.column_stack([E_array, I[mask], L[mask], q])
 
             # (Opcional, mas seguro): checa numericamente rho <= rho_max (deve sempre passar)
             # Se quiser manter 100% "hard", dá pra remover essa checagem.
@@ -245,7 +248,7 @@ def main():
     if RHO_MAX == 0.05:
         output_dir = paths.data.raw / "Sobol" / "params" / "rho_0.050"
     elif RHO_MAX == 0.01:
-        output_dir = paths.data.raw / "Sobol" / "params" / "rho_0.010"
+        output_dir = paths.data.raw / "Sobol" / "params" / "rho_0.010_E_fixed_102_elements"
     elif RHO_MAX == 0.025:
         output_dir = paths.data.raw / "Sobol" / "params" / "rho_0.025"
 

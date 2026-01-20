@@ -27,11 +27,11 @@ import numpy as np
 from src.paths import paths
 
 # --- Paths (sem hardcode) ---
-PARAMS_DIR = paths.data.raw / "Sobol" / "params" / "rho_0.050"
-RESULTS_DIR = paths.data.raw / "Sobol" / "results" / "rho_0.050"
+PARAMS_DIR = paths.data.raw / "Sobol" / "params" / "rho_0.010_E_fixed_102_elements_biapoiada"
+RESULTS_DIR = paths.data.raw / "Sobol" / "results" / "rho_0.010_E_fixed_102_elements_biapoiada"
 
 # --- Config editável ---
-N_ELEMENTS_LIST = [21]  # round-robin
+N_ELEMENTS_LIST = [102]  # round-robin
 MODEL_ORDER = 3  # fixo
 
 # Cantilever (engaste no nó 0), mesmo padrão do C++
@@ -86,6 +86,7 @@ def _solve_case(
 ):
     """
     Resolve um caso usando binding e retorna (case_id, n_elements, displacements:list, rotations:list)
+    Para viga biapoiada (simply supported beam).
     """
     pv = _pv
     if pv is None:
@@ -98,6 +99,15 @@ def _solve_case(
     nodes = np.asarray(beam.nodes, dtype=np.float64)
     elements = np.asarray(beam.elements, dtype=np.int32)
 
+    # Calcular SUPP dinamicamente baseado no número de nós
+    #n_nodes = len(nodes)
+    #last_node_idx = n_nodes - 1  # Para 102 elementos = 103 nós, último é índice 102
+    
+    # SUPP = np.array([
+    #     [0, 1, 0, 0],               # Apoio esquerdo: w restrito, rotação livre
+    #     [102, 1, 0, 0]    # Apoio direito: w restrito, rotação livre
+    # ], dtype=np.int32)
+
     # Solver
     solver = pv.solver.BeamSolver(nodes, elements, MODEL_ORDER)
     solver.setInertiaMoment(float(I))
@@ -107,7 +117,7 @@ def _solve_case(
     q = np.full((2, 1), -float(q_val), dtype=np.float64)
     solver.setDistributedLoad(q, elements)
 
-    # Montagem + condensação
+    # Montagem + condensação (resto sem mudanças)
     K = solver.buildGlobalK(float(E))
     KII = solver.buildStaticCondensation(K, "KII")
     KIM = solver.buildStaticCondensation(K, "KIM")

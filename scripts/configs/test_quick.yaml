@@ -1,0 +1,32 @@
+# Configuração para testes médios - dataset intermediário, epochs intermediárias
+# Bom para validar mudanças de código sem esperar muito tempo
+# Tempo esperado: ~8-10 minutos no MacBook M4
+
+data:
+  sampling_method: Sobol
+  dataset_size: 10000         # Intermediário entre quick (1k) e default (100k)
+  val_split: 0.30
+  scaler_type: minmax
+  rho_folder: "rho_0.010"
+
+model:
+  input_dim: 12
+  hidden_dim: 64
+  output_dim: 1
+  num_layers: 6
+  dropout: 0.1
+
+training:
+  epochs: 200                 # Intermediário entre quick (5) e default (500)
+  batch_size: 64
+  learning_rate: 5.0e-4
+  weight_decay: 1.0e-4
+  loss_type: mse
+  huber_delta: 1.0
+
+evaluation:
+  mc_samples: 50
+  n_profile_samples: 6
+
+cv_mode: fixed                # Mantém split fixo para ser mais rápido
+n_folds: 5

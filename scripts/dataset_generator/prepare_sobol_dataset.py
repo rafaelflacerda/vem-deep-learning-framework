@@ -20,13 +20,13 @@ from loguru import logger
 from src.paths import ensure_dir, paths
 from src.utils.logger import configure_logger
 
-rho_max = "rho_0.010"
+rho_max = "rho_0.010_E_fixed_102_elements_biapoiada"
 
 # =============================================================================
 # CONSTANTES
 # =============================================================================
 
-N_ELEMENTS = 21  # Número fixo de elementos
+N_ELEMENTS = 102  # Número fixo de elementos
 N_NODES = N_ELEMENTS + 1  # 22 nós
 
 
@@ -45,7 +45,7 @@ def compute_global_features(params: pd.DataFrame) -> np.ndarray:
     Returns:
         Array shape (n_samples, 4) com [E, I, L, q]
     """
-    return params[["E", "I", "L", "q"]].values
+    return params[["I", "L", "q"]].values
 
 
 def compute_derived_features(params: pd.DataFrame) -> np.ndarray:
@@ -63,11 +63,11 @@ def compute_derived_features(params: pd.DataFrame) -> np.ndarray:
     L = params["L"].values
     q = params["q"].values
 
-    EI = E * I
+    #EI = E * I
     q_scale = (q * L**4) / (E * I)
     q_over_EI = q / (E * I)
 
-    return np.stack([EI, q_scale, q_over_EI], axis=1)
+    return np.stack([q_scale, q_over_EI], axis=1)
 
 
 def compute_positional_features(params: pd.DataFrame) -> np.ndarray:
@@ -126,12 +126,12 @@ def combine_features(
     # Replicar features globais e derivadas para cada nó
     # (n_samples, 4) -> (n_samples, 1, 4) -> (n_samples, 22, 4)
     global_feats_rep = np.broadcast_to(
-        global_feats[:, np.newaxis, :], (n_samples, N_NODES, 4)
+        global_feats[:, np.newaxis, :], (n_samples, N_NODES, 3)
     )
 
     # (n_samples, 3) -> (n_samples, 1, 3) -> (n_samples, 22, 3)
     derived_feats_rep = np.broadcast_to(
-        derived_feats[:, np.newaxis, :], (n_samples, N_NODES, 3)
+        derived_feats[:, np.newaxis, :], (n_samples, N_NODES, 2)
     )
 
     # Concatenar: (n_samples, 22, 4+3+5=12)
@@ -310,10 +310,10 @@ def process_dataset(n_samples: int) -> Path:
         "metadata": {
             "n_samples": n_samples,
             "n_nodes": N_NODES,
-            "n_features": 12,
+            "n_features": 10,
             "feature_names": {
-                "global": ["E", "I", "L", "q"],
-                "derived": ["EI", "q_scale", "q_over_EI"],
+                "global": ["I", "L", "q"],
+                "derived": ["q_scale", "q_over_EI"],
                 "positional": [
                     "x",
                     "x_normalized",
@@ -322,11 +322,9 @@ def process_dataset(n_samples: int) -> Path:
                     "x_normalized_4",
                 ],
                 "all": [
-                    "E",
                     "I",
                     "L",
                     "q",  # globais
-                    "EI",
                     "q_scale",
                     "q_over_EI",  # derivadas
                     "x",
