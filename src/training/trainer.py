@@ -57,6 +57,23 @@ class BeamGNNTrainer:
             activation=config.model.activation, 
         )
         self.model = self.model.to(device)
+
+        if torch.__version__ >= "2.0.0" and self.device.type == "cuda":
+            logger.info("Compilando modelo com torch.compile()...")
+            try:
+                self.model = torch.compile(
+                    self.model,
+                    mode="default",  # Opções: "default", "reduce-overhead", "max-autotune"
+                )
+                logger.info("Modelo compilado com sucesso")
+            except Exception as e:
+                logger.warning("Falha ao compilar modelo: {}. Continuando sem compilação.", e)
+
+        self.use_amp = device.type == "cuda"
+        self.scaler = torch.amp.GradScaler('cuda') if self.use_amp else None
+
+        if self.use_amp:
+            logger.info("Mixed Precision (AMP) ativado para acelerar treinamento em CUDA.")
         
         # Contar parâmetros
         n_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
@@ -99,15 +116,26 @@ class BeamGNNTrainer:
         n_batches = 0
         
         for batch in train_loader:
-            batch = batch.to(self.device)
+            batch = batch.to(self.device, non_blocking=True)
             
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad(set_to_none=True)
+
+            if self.use_amp:
+                with torch.amp.autocast('cuda'):
+                    out = self.model(batch.x, batch.edge_index)
+                    loss = self.criterion(out.squeeze(), batch.y)
+
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+
+            else:
             
-            out = self.model(batch.x, batch.edge_index)
-            loss = self.criterion(out.squeeze(), batch.y)
+                out = self.model(batch.x, batch.edge_index)
+                loss = self.criterion(out.squeeze(), batch.y)
             
-            loss.backward()
-            self.optimizer.step()
+                loss.backward()
+                self.optimizer.step()
             
             total_loss += loss.item()
             n_batches += 1
@@ -140,7 +168,7 @@ class BeamGNNTrainer:
         all_targets = []
         
         for batch in val_loader:
-            batch = batch.to(self.device)
+            batch = batch.to(self.device, non_blocking=True)
             
             out = self.model(batch.x, batch.edge_index)
             loss = self.criterion(out.squeeze(), batch.y)
@@ -148,11 +176,17 @@ class BeamGNNTrainer:
             total_loss += loss.item()
             n_batches += 1
             
-            all_preds.append(out.squeeze().cpu())
-            all_targets.append(batch.y.cpu())
+            # Manter na GPU - não fazer .cpu() aqui!
+            all_preds.append(out.squeeze())      # ← Fica na GPU
+            all_targets.append(batch.y)          # ← Fica na GPU
         
-        all_preds = torch.cat(all_preds)
-        all_targets = torch.cat(all_targets)
+        # Concatenar tudo na GPU primeiro
+        all_preds = torch.cat(all_preds)        # ← Tudo ainda na GPU
+        all_targets = torch.cat(all_targets)    # ← Tudo ainda na GPU
+        
+        # AGORA SIM: uma única transferência GPU→CPU no final
+        all_preds = all_preds.cpu()
+        all_targets = all_targets.cpu()
         
         return total_loss / n_batches, all_preds, all_targets
     
@@ -184,7 +218,7 @@ class BeamGNNTrainer:
         
         with torch.no_grad():
             for batch in loader:
-                batch = batch.to(self.device)
+                batch = batch.to(self.device, non_blocking=True)
                 
                 # Múltiplos forward passes
                 predictions = []
@@ -393,6 +427,7 @@ class BeamGNNTrainer:
             "best_epoch": best_epoch,
             "best_val_loss": best_val_loss,
         }
+
     
     def run_kfold(
         self,
@@ -424,6 +459,45 @@ class BeamGNNTrainer:
         all_val_losses = []
         
         for fold_idx, (train_indices, val_indices) in enumerate(fold_splits, 1):
+            # ================================================================
+            # RESETAR MODELO PARA CADA FOLD
+            # Necessário para evitar conflitos de estado quando rodando sweeps
+            # com diferentes hiperparâmetros ou para garantir independência
+            # entre folds
+            # ================================================================
+            from src.modeling.gnn import BeamGNN
+            
+            self.model = BeamGNN(
+                input_dim=self.config.model.input_dim,
+                hidden_dim=self.config.model.hidden_dim,
+                output_dim=self.config.model.output_dim,
+                num_layers=self.config.model.num_layers,
+                dropout=self.config.model.dropout,
+                activation=self.config.model.activation,
+            ).to(self.device)
+
+            if torch.__version__ >= "2.0.0" and self.device.type == "cuda":
+                logger.info("Compilando modelo com torch.compile()...")
+                try:
+                    self.model = torch.compile(
+                        self.model,
+                        mode="default",  # Opções: "default", "reduce-overhead", "max-autotune"
+                    )
+                    logger.info("Modelo compilado com sucesso")
+                except Exception as e:
+                    logger.warning("Falha ao compilar modelo: {}. Continuando sem compilação.", e)
+            
+            # Recriar optimizer e scheduler para o novo modelo
+            self.optimizer = self._create_optimizer()
+            self.scheduler = self._create_scheduler()
+            
+            # Recriar scaler se usando AMP
+            if self.use_amp:
+                self.scaler = torch.amp.GradScaler('cuda')
+            
+            logger.info("Modelo resetado para fold {}", fold_idx)
+            # ================================================================
+            
             logger.info("=" * 70)
             logger.info("Treinando Fold {}/{}", fold_idx, self.config.n_folds)
             logger.info("=" * 70)
@@ -440,11 +514,17 @@ class BeamGNNTrainer:
                 train_dataset,
                 batch_size=self.config.training.batch_size,
                 shuffle=True,
+                num_workers=4,
+                pin_memory=True,
+                persistent_workers=True,
             )
             val_loader = DataLoader(
                 val_dataset,
                 batch_size=self.config.training.batch_size,
                 shuffle=False,
+                num_workers=4,
+                pin_memory=True,
+                persistent_workers=True,
             )
             
             # Treinar este fold

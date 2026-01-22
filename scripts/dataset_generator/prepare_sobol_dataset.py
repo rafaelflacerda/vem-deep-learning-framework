@@ -20,7 +20,7 @@ from loguru import logger
 from src.paths import ensure_dir, paths
 from src.utils.logger import configure_logger
 
-rho_max = "rho_0.010_E_fixed_102_elements_biapoiada"
+rho_max = "rho_0.010_E_fixed_102_elements"
 
 # =============================================================================
 # CONSTANTES

@@ -169,34 +169,30 @@ def apply_config_overrides(config: ExperimentConfig, overrides: list[str]) -> Ex
 
 def get_device() -> torch.device:
     """
-    Retorna device MPS (Apple Silicon).
+    Retorna o melhor device disponível: CUDA > MPS > CPU.
     
-    Esta função exige que MPS esteja disponível e configurado.
-    Não há fallback para CPU ou CUDA.
+    Prioridade:
+    1. CUDA (NVIDIA GPUs) - melhor performance
+    2. MPS (Apple Silicon) - boa performance em Macs
+    3. CPU - fallback
     
     Returns:
-        Device MPS para treinamento.
-        
-    Raises:
-        RuntimeError: Se MPS não estiver disponível ou configurado.
+        Device PyTorch para treinamento.
     """
-    if not torch.backends.mps.is_available():
-        raise RuntimeError(
-            "MPS não está disponível neste sistema. "
-            "Certifique-se de estar usando macOS com Apple Silicon (M1/M2/M3/M4) "
-            "e PyTorch com suporte a MPS instalado."
-        )
-    
-    if not torch.backends.mps.is_built():
-        raise RuntimeError(
-            "PyTorch foi compilado sem suporte a MPS. "
-            "Reinstale PyTorch com suporte a MPS: "
-            "pip install torch torchvision torchaudio"
-        )
-    
-    device = torch.device("mps")
-    logger.info("Usando device: MPS (Apple Silicon)")
-    return device
+    # Tentar CUDA primeiro (NVIDIA)
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        gpu_name = torch.cuda.get_device_name(0)
+        gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1e9
+        logger.info("Usando device: CUDA")
+        logger.info("GPU: {} ({:.1f} GB VRAM)", gpu_name, gpu_memory)
+        
+        # Configurações de otimização para CUDA
+        torch.backends.cudnn.benchmark = True  # Otimiza convoluções
+        torch.backends.cuda.matmul.allow_tf32 = True  # Usa TF32 para matmul
+        torch.backends.cudnn.allow_tf32 = True  # Usa TF32 para convs
+        
+        return device
 
 
 # =============================================================================
@@ -341,11 +337,17 @@ def main():
             train_dataset,
             batch_size=config.training.batch_size,
             shuffle=True,
+            num_workers = 4,
+            pin_memory = True,
+            persistent_workers = True,
         )
         val_loader = DataLoader(
             val_dataset,
             batch_size=config.training.batch_size,
             shuffle=False,
+            num_workers = 4,
+            pin_memory = True,
+            persistent_workers = True,
         )
         
         # Treinar
@@ -383,6 +385,9 @@ def main():
             val_dataset,
             batch_size=config.training.batch_size,
             shuffle=False,
+            num_workers = 4,
+            pin_memory = True,
+            persistent_workers = True,
         )
     else:
         raise ValueError(f"cv_mode inválido: {config.cv_mode}")
