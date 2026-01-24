@@ -9,7 +9,7 @@ class DataConfig(BaseModel):
     """Configurações de dados e dataset."""
 
     sampling_method: Literal["Sobol", "LHS"] = Field(default="Sobol")
-    dataset_size: int = Field(default=2500, ge=10)
+    dataset_size: int = Field(default=25000, ge=10)
     val_split: float = Field(default=0.30, ge=0.0, le=1.0)
     scaler_type: Literal["standard", "minmax", "robust", "none"] = Field(default="minmax")  # <-- ADICIONAR "robust"
     rho_folder: str = Field(
@@ -35,7 +35,7 @@ class ModelConfig(BaseModel):
 
 class TrainingConfig(BaseModel):
     """Configurações de treinamento."""
-    epochs: int = Field(default=500, ge=1)
+    epochs: int = Field(default=400, ge=1)
     batch_size: int = Field(default=256, ge=1)
     learning_rate: float = Field(default=5e-4, gt=0.0)
     weight_decay: float = Field(default=1e-4, ge=0.0)

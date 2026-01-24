@@ -11,12 +11,12 @@ metric:
 parameters:
   # Ativação (2 opções)
   model.activation:
-    values: ["silu", "gelu"]
+    values: ["gelu"]
   
   # Learning rate (contínuo, em escala log)
   training.learning_rate:
     distribution: log_uniform_values
-    min: 0.0001
+    min: 0.00001
     max: 0.01
   
   # Número de camadas (discreto)
@@ -25,6 +25,7 @@ parameters:
   
   # Dropout (discreto)
   model.dropout:
+    distribution: uniform
     min: 0.05
     max: 0.10
   
@@ -35,11 +36,13 @@ parameters:
   # Loss type (2 opções)
   
   training.huber_delta:
+    distribution: uniform
     min: 0.5
     max: 1.5
 
   # Scheduler factor (para ReduceLROnPlateau)
   training.scheduler_factor:
+    distribution: uniform
     min: 0.5
     max: 0.9
   
@@ -49,13 +52,15 @@ parameters:
   
   # AdamW beta1
   training.adamw_beta1:
-    min: 0.95
+    distribution: uniform
+    min: 0.85
     max: 0.99
   
   # AdamW beta2
   training.adamw_beta2:
-    min: 0.990
-    max: 0.995
+    distribution: uniform
+    min: 0.980
+    max: 0.999
   
   # AdamW epsilon
   training.adamw_epsilon:
@@ -64,15 +69,12 @@ parameters:
     max: 1.0e-6
 
   cv_mode:
-    values: ["fixed", "kfold"]
-
-  n_folds:
-    values: [5, 10]
+    values: ["fixed"]
 
   training.batch_size:
-    values: [128, 256, 512, 1024]
+    values: [1024, 2048, 4096]
 
   training.weight_decay:
     distribution: log_uniform_values
-    min: 1.0e-5
+    min: 1.0e-6
     max: 1.0e-3
