@@ -1,9 +1,7 @@
-# Configuração de Sweep para comparação de scalers com SGD
-# Objetivo: encontrar melhor combinação de scaler + hiperparâmetros SGD
 # Método: Bayesian optimization para explorar eficientemente o espaço
 
 program: scripts/run_for_sweep.py
-method: bayes
+method: random
 metric:
   name: val_loss
   goal: minimize
@@ -11,33 +9,33 @@ metric:
 parameters:
   # Ativação (2 opções)
   model.activation:
-    values: ["gelu"]
+    values: ["gelu", "silu"]
   
   # Learning rate (contínuo, em escala log)
   training.learning_rate:
     distribution: log_uniform_values
     min: 0.00001
-    max: 0.01
+    max: 0.005
   
   # Número de camadas (discreto)
   model.num_layers:
-    values: [9, 10, 11, 12]
+    values: [4, 5, 6, 7, 8, 9, 10, 11, 12]
   
   # Dropout (discreto)
   model.dropout:
     distribution: uniform
     min: 0.05
-    max: 0.10
+    max: 0.20
   
   # Hidden dimension (discreto)
   model.hidden_dim:
-    values: [32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256]
+    values: [48, 64, 96, 128, 192, 256]
 
   # Loss type (2 opções)
   
   training.huber_delta:
     distribution: uniform
-    min: 0.5
+    min: 0.3
     max: 1.5
 
   # Scheduler factor (para ReduceLROnPlateau)
@@ -48,33 +46,33 @@ parameters:
   
   # Scheduler patience
   training.scheduler_patience:
-    values: [10, 15, 20, 25, 30]
+    values: [15, 20, 25, 30]
   
   # AdamW beta1
   training.adamw_beta1:
     distribution: uniform
-    min: 0.85
-    max: 0.99
+    min: 0.850
+    max: 0.999
   
   # AdamW beta2
   training.adamw_beta2:
     distribution: uniform
-    min: 0.980
+    min: 0.970
     max: 0.999
   
   # AdamW epsilon
   training.adamw_epsilon:
     distribution: log_uniform_values
-    min: 1.0e-9
-    max: 1.0e-6
+    min: 5.0e-10
+    max: 5.0e-6
 
   cv_mode:
     values: ["fixed"]
 
   training.batch_size:
-    values: [1024, 2048, 4096]
+    values: [256, 512, 1024]
 
   training.weight_decay:
     distribution: log_uniform_values
-    min: 1.0e-6
-    max: 1.0e-3
+    min: 0.000001
+    max: 0.001

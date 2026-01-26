@@ -1,10 +1,12 @@
 """
 Dataset para GNN que carrega dados preprocessados e constrói grafos.
 
-Cada amostra (viga) vira um grafo onde:
+Suporta grafos de tamanhos variados (diferentes números de elementos por caso).
+
+Cada amostra (viga) é um grafo onde:
 - Nós: pontos da discretização da viga
 - Arestas: conectividade linear (cada nó conectado aos vizinhos)
-- Node features: as 12 features físicas
+- Node features: as 10 features físicas
 - Target: deslocamento vertical por nó
 """
 
@@ -14,45 +16,12 @@ from torch_geometric.data import Data, Dataset
 from src.data.scalers import BaseScaler, get_scaler
 
 
-def build_edge_index(n_nodes: int) -> torch.Tensor:
-    """
-    Constrói edge_index para grafo linear (cadeia 1D).
-
-    Para uma viga com n nós, criamos arestas bidirecionais:
-    0 -- 1 -- 2 -- ... -- (n-1)
-
-    Args:
-        n_nodes: Número de nós na viga.
-
-    Returns:
-        Tensor de shape (2, 2*(n_nodes-1)) com as arestas.
-        Cada coluna é uma aresta [source, target].
-    """
-    # Arestas para frente: 0->1, 1->2, ..., (n-2)->(n-1)
-    forward_src = torch.arange(n_nodes - 1)
-    forward_dst = torch.arange(1, n_nodes)
-
-    # Arestas para trás: 1->0, 2->1, ..., (n-1)->(n-2)
-    backward_src = forward_dst
-    backward_dst = forward_src
-
-    # Concatenar para grafo bidirecional
-    edge_index = torch.stack(
-        [
-            torch.cat([forward_src, backward_src]),
-            torch.cat([forward_dst, backward_dst]),
-        ]
-    )
-
-    return edge_index
-
-
 class BeamGraphDataset(Dataset):
     """
-    Dataset de grafos para vigas 1D.
+    Dataset de grafos para vigas 1D com tamanhos variados.
 
-    Carrega dados preprocessados (.pt) e converte cada amostra em um grafo
-    PyTorch Geometric. Aplica scaling nas features e targets.
+    Carrega dados preprocessados (.pt) contendo lista de grafos Data.
+    Aplica scaling nas features e targets.
 
     Args:
         pt_path: Caminho para o arquivo .pt com dados preprocessados.
@@ -72,17 +41,11 @@ class BeamGraphDataset(Dataset):
 
         # Carregar dados
         data = torch.load(pt_path, weights_only=False)
-        self.features = data["features"]  # (n_samples, n_nodes, n_features)
-        self.targets = data["targets"]  # (n_samples, n_nodes)
+        self.data_list: list[Data] = data["data_list"]
         self.metadata = data["metadata"]
 
-        self.n_samples = self.features.shape[0]
-        self.n_nodes = self.features.shape[1]
-        self.n_features = self.features.shape[2]
-
-        # Edge index é o mesmo para todas as amostras (topologia fixa)
-        # self.edge_index = build_edge_index(self.n_nodes)
-        self.edge_index = data["edge_index"]
+        self.n_samples = len(self.data_list)
+        self.n_features = self.data_list[0].x.shape[1]  # todas têm mesma quantidade de features
 
         # Configurar scalers
         if isinstance(feature_scaler, str):
@@ -97,34 +60,69 @@ class BeamGraphDataset(Dataset):
 
         # Fitar scalers se necessário
         if fit_scalers:
-            self.feature_scaler.fit(self.features)
-            # Targets tem shape (n_samples, n_nodes), precisamos adicionar dim para o scaler
-            self.target_scaler.fit(self.targets.unsqueeze(-1))
+            self._fit_scalers()
 
-        # Aplicar scaling
-        self.features_scaled = self.feature_scaler.transform(self.features)
-        self.targets_scaled = self.target_scaler.transform(
-            self.targets.unsqueeze(-1)
-        ).squeeze(-1)
+        # Aplicar scaling e armazenar grafos escalados
+        self.data_list_scaled = self._apply_scaling()
+
+    def _fit_scalers(self) -> None:
+        """
+        Fita os scalers concatenando features/targets de todos os grafos.
+        """
+        # Concatenar todas as features: (total_nodes, n_features)
+        all_features = torch.cat([data.x for data in self.data_list], dim=0)
+
+        # Concatenar todos os targets: (total_nodes,)
+        all_targets = torch.cat([data.y for data in self.data_list], dim=0)
+
+        # Fitar scalers
+        # features já tem shape (total_nodes, n_features), adequado para o scaler
+        self.feature_scaler.fit(all_features.unsqueeze(0))  # adiciona dim de batch
+
+        # targets precisa de dim extra para o scaler
+        self.target_scaler.fit(all_targets.unsqueeze(0).unsqueeze(-1))
+
+    def _apply_scaling(self) -> list[Data]:
+        """
+        Aplica scaling em cada grafo e retorna lista de grafos escalados.
+        """
+        scaled_list = []
+
+        for data in self.data_list:
+            # Escalar features: (n_nodes, n_features)
+            x_scaled = self.feature_scaler.transform(data.x.unsqueeze(0)).squeeze(0)
+
+            # Escalar targets: (n_nodes,)
+            y_scaled = self.target_scaler.transform(
+                data.y.unsqueeze(0).unsqueeze(-1)
+            ).squeeze(0).squeeze(-1)
+
+            # Criar novo Data com valores escalados
+            scaled_data = Data(
+                x=x_scaled,
+                edge_index=data.edge_index,
+                y=y_scaled,
+                n_elements=data.n_elements,
+            )
+            scaled_list.append(scaled_data)
+
+        return scaled_list
 
     def len(self) -> int:
         return self.n_samples
 
     def get(self, idx: int) -> Data:
         """
-        Retorna um grafo PyTorch Geometric para a amostra idx.
+        Retorna o grafo escalado para a amostra idx.
 
         Returns:
             Data object com:
                 - x: node features (n_nodes, n_features)
                 - edge_index: conectividade (2, n_edges)
                 - y: targets (n_nodes,)
+                - n_elements: número de elementos deste grafo
         """
-        return Data(
-            x=self.features_scaled[idx],
-            edge_index=self.edge_index,
-            y=self.targets_scaled[idx],
-        )
+        return self.data_list_scaled[idx]
 
     def inverse_transform_targets(self, targets_scaled: torch.Tensor) -> torch.Tensor:
         """
@@ -137,6 +135,11 @@ class BeamGraphDataset(Dataset):
             Targets em unidades físicas originais.
         """
         if targets_scaled.dim() == 1:
+            targets_scaled = targets_scaled.unsqueeze(0).unsqueeze(-1)
+            return self.target_scaler.inverse_transform(targets_scaled).squeeze(0).squeeze(-1)
+
+        if targets_scaled.dim() == 2:
             targets_scaled = targets_scaled.unsqueeze(-1)
             return self.target_scaler.inverse_transform(targets_scaled).squeeze(-1)
+
         return self.target_scaler.inverse_transform(targets_scaled)

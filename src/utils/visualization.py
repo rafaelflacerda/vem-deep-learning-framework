@@ -834,6 +834,282 @@ def plot_profile_with_uncertainty(
     fig.tight_layout()
     return fig
 
+def plot_calibration_curve(
+    coverage_nominal: Sequence[float],
+    coverage_before: Sequence[float],
+    coverage_after: Sequence[float] | None = None,
+    figsize: tuple[float, float] = (7, 6),
+    ideal_color: str = "black",
+    before_color: str = "#E39774",
+    after_color: str = "#037A68",
+    xlabel: str = "Cobertura Nominal",
+    ylabel: str = "Cobertura Empírica",
+    title: str = "Curva de Calibração da Incerteza",
+) -> plt.Figure:
+    """
+    Gráfico de calibração mostrando cobertura nominal vs empírica.
+    
+    A diagonal representa calibração perfeita: se o modelo diz "95% de
+    confiança", então 95% dos valores reais devem cair no intervalo.
+    
+    Pontos abaixo da diagonal indicam modelo superconfiante (intervalos
+    muito estreitos). Pontos acima indicam modelo subconfiante.
+    
+    Args:
+        coverage_nominal: Níveis nominais de cobertura (ex: [0.50, 0.68, 0.90, 0.95]).
+        coverage_before: Cobertura empírica antes da calibração.
+        coverage_after: Cobertura empírica após calibração (opcional).
+        figsize: Tamanho da figura.
+        ideal_color: Cor da linha diagonal (calibração perfeita).
+        before_color: Cor dos pontos/linha antes da calibração.
+        after_color: Cor dos pontos/linha após calibração.
+        xlabel: Rótulo do eixo X.
+        ylabel: Rótulo do eixo Y.
+        title: Título do gráfico.
+    
+    Returns:
+        Figura matplotlib.
+    """
+    coverage_nominal = np.array(coverage_nominal)
+    coverage_before = np.array(coverage_before)
+    
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Linha diagonal (calibração perfeita)
+    ax.plot(
+        [0, 1], [0, 1],
+        color=ideal_color,
+        linestyle="--",
+        linewidth=1.5,
+        label="Calibração Perfeita",
+    )
+    
+    # Cobertura antes da calibração
+    ax.plot(
+        coverage_nominal,
+        coverage_before,
+        color=before_color,
+        marker="o",
+        markersize=10,
+        linewidth=2,
+        label="Antes da Calibração",
+    )
+    
+    # Cobertura após calibração (se fornecida)
+    if coverage_after is not None:
+        coverage_after = np.array(coverage_after)
+        ax.plot(
+            coverage_nominal,
+            coverage_after,
+            color=after_color,
+            marker="s",
+            markersize=10,
+            linewidth=2,
+            label="Após Calibração",
+        )
+    
+    # Região de superconfiança (abaixo da diagonal)
+    ax.fill_between(
+        [0, 1], [0, 1], [0, 0],
+        alpha=0.1,
+        color="red",
+        label="_nolegend_",
+    )
+    ax.text(
+        0.75, 0.25,
+        "Superconfiante",
+        fontsize=10,
+        alpha=0.7,
+        ha="center",
+    )
+    
+    # Região de subconfiança (acima da diagonal)
+    ax.fill_between(
+        [0, 1], [1, 1], [0, 1],
+        alpha=0.1,
+        color="blue",
+        label="_nolegend_",
+    )
+    ax.text(
+        0.25, 0.75,
+        "Subconfiante",
+        fontsize=10,
+        alpha=0.7,
+        ha="center",
+    )
+    
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_aspect("equal")
+    ax.legend(loc="lower right")
+    ax.grid(True, alpha=0.3)
+    
+    fig.tight_layout()
+    return fig
+
+
+def plot_zscore_histogram(
+    y_true: torch.Tensor | np.ndarray,
+    y_pred: torch.Tensor | np.ndarray,
+    y_std_before: torch.Tensor | np.ndarray,
+    y_std_after: torch.Tensor | np.ndarray | None = None,
+    figsize: tuple[float, float] = (10, 5),
+    bins: int = 50,
+    before_color: str = "#E39774",
+    after_color: str = "#037A68",
+    normal_color: str = "black",
+    xlabel: str = "Z-score",
+    ylabel: str = "Densidade",
+    title: str = "Distribuição dos Resíduos Padronizados (Z-scores)",
+) -> plt.Figure:
+    """
+    Histograma dos z-scores antes e depois da calibração.
+    
+    O z-score é definido como z = (y_true - y_pred) / σ. Se a incerteza
+    estiver bem calibrada e os erros forem Gaussianos, os z-scores devem
+    seguir uma distribuição Normal(0, 1).
+    
+    O gráfico mostra:
+    - Histograma dos z-scores (antes e/ou depois da calibração)
+    - Curva teórica N(0,1) para comparação
+    
+    Se o histograma "antes" estiver muito espalhado, significa que o σ
+    original era muito pequeno (modelo superconfiante). Após calibração,
+    o histograma deve se aproximar da curva N(0,1).
+    
+    Args:
+        y_true: Valores reais.
+        y_pred: Predições (média do MC Dropout).
+        y_std_before: Desvio padrão antes da calibração.
+        y_std_after: Desvio padrão após calibração (opcional).
+        figsize: Tamanho da figura.
+        bins: Número de bins do histograma.
+        before_color: Cor do histograma antes da calibração.
+        after_color: Cor do histograma após calibração.
+        normal_color: Cor da curva N(0,1) teórica.
+        xlabel: Rótulo do eixo X.
+        ylabel: Rótulo do eixo Y.
+        title: Título do gráfico.
+    
+    Returns:
+        Figura matplotlib.
+    """
+    from scipy import stats
+    
+    y_true = _to_numpy(y_true).flatten()
+    y_pred = _to_numpy(y_pred).flatten()
+    y_std_before = _to_numpy(y_std_before).flatten()
+    
+    # Calcular z-scores antes da calibração
+    eps = 1e-8
+    z_before = (y_true - y_pred) / (y_std_before + eps)
+    
+    # Determinar número de subplots
+    n_plots = 2 if y_std_after is not None else 1
+    
+    fig, axes = plt.subplots(1, n_plots, figsize=figsize)
+    if n_plots == 1:
+        axes = [axes]
+    
+    # Curva teórica N(0,1)
+    x_range = np.linspace(-6, 6, 200)
+    y_normal = stats.norm.pdf(x_range, 0, 1)
+    
+    # Subplot 1: Antes da calibração
+    ax = axes[0]
+    ax.hist(
+        z_before,
+        bins=bins,
+        density=True,
+        color=before_color,
+        alpha=0.7,
+        edgecolor="white",
+        label="Z-scores (antes)",
+    )
+    ax.plot(
+        x_range,
+        y_normal,
+        color=normal_color,
+        linewidth=2,
+        linestyle="--",
+        label="N(0,1) teórica",
+    )
+    
+    # Estatísticas
+    mean_before = np.mean(z_before)
+    std_before = np.std(z_before)
+    ax.axvline(mean_before, color=before_color, linestyle=":", linewidth=1.5)
+    
+    stats_text = f"μ = {mean_before:.3f}\nσ = {std_before:.3f}"
+    ax.text(
+        0.95, 0.95,
+        stats_text,
+        transform=ax.transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        horizontalalignment="right",
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+    )
+    
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title("Antes da Calibração" if n_plots > 1 else title)
+    ax.set_xlim(-6, 6)
+    ax.legend(loc="upper left")
+    ax.grid(True, alpha=0.3)
+    
+    # Subplot 2: Após calibração (se fornecido)
+    if y_std_after is not None:
+        y_std_after = _to_numpy(y_std_after).flatten()
+        z_after = (y_true - y_pred) / (y_std_after + eps)
+        
+        ax = axes[1]
+        ax.hist(
+            z_after,
+            bins=bins,
+            density=True,
+            color=after_color,
+            alpha=0.7,
+            edgecolor="white",
+            label="Z-scores (após)",
+        )
+        ax.plot(
+            x_range,
+            y_normal,
+            color=normal_color,
+            linewidth=2,
+            linestyle="--",
+            label="N(0,1) teórica",
+        )
+        
+        mean_after = np.mean(z_after)
+        std_after = np.std(z_after)
+        ax.axvline(mean_after, color=after_color, linestyle=":", linewidth=1.5)
+        
+        stats_text = f"μ = {mean_after:.3f}\nσ = {std_after:.3f}"
+        ax.text(
+            0.95, 0.95,
+            stats_text,
+            transform=ax.transAxes,
+            fontsize=10,
+            verticalalignment="top",
+            horizontalalignment="right",
+            bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+        )
+        
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_title("Após Calibração")
+        ax.set_xlim(-6, 6)
+        ax.legend(loc="upper left")
+        ax.grid(True, alpha=0.3)
+    
+    fig.suptitle(title, fontsize=12, y=1.02)
+    fig.tight_layout()
+    return fig
 
 # =============================================================================
 # GRÁFICOS DE TREINAMENTO
@@ -1248,5 +1524,124 @@ def plot_beam_cases_comparison(
 
     fig.tight_layout()
     fig.subplots_adjust(top=0.88)  # Espaço para legenda
+
+    return fig
+
+def plot_beam_cases_comparison_variable(
+    cases_data: list[dict],
+    figsize: tuple[float, float] = (15, 5),
+    scale_factor: float = 1.0,
+    scale_y: float = 1000.0,
+    undeformed_color: str = "black",
+    vem_color: str = "#037A68",
+    nn_color: str = "#326273",
+    uncertainty_color: str = "red",
+    uncertainty_alpha: float = 0.25,
+    n_sigma: float = 2.0,
+) -> plt.Figure:
+    """
+    Plota três casos lado a lado para grafos de tamanhos variados.
+
+    Diferente de plot_beam_cases_comparison, esta função aceita positions
+    diferentes para cada caso, permitindo grafos com números de nós distintos.
+
+    Args:
+        cases_data: Lista de 3 dicionários, cada um com:
+            - 'positions': posições dos nós deste grafo
+            - 'y_vem': deslocamentos VEM
+            - 'y_nn': deslocamentos NN
+            - 'y_nn_std': incerteza NN
+            - 'title': título do subplot
+            - 'error': valor do erro (para anotação)
+        figsize: Tamanho da figura.
+        scale_factor: Fator de escala para deformações.
+        scale_y: Fator de conversão para unidades (ex: 1000 para mm).
+        undeformed_color: Cor da viga indeformada.
+        vem_color: Cor da solução VEM.
+        nn_color: Cor da predição NN.
+        uncertainty_color: Cor da banda de incerteza.
+        uncertainty_alpha: Transparência da banda.
+        n_sigma: Número de desvios padrão para banda.
+
+    Returns:
+        Figura matplotlib.
+    """
+    fig, axes = plt.subplots(1, 3, figsize=figsize)
+
+    for ax, case in zip(axes, cases_data, strict=False):
+        positions = case["positions"]
+        y_vem = case["y_vem"]
+        y_nn = case["y_nn"]
+        y_nn_std = case.get("y_nn_std")
+        title = case.get("title", "")
+        error = case.get("error")
+
+        # Viga indeformada
+        ax.plot(
+            positions,
+            np.zeros_like(positions),
+            color=undeformed_color,
+            linewidth=1.5,
+            linestyle="-",
+            label="Indeformada",
+        )
+
+        # Solução VEM
+        ax.plot(
+            positions,
+            y_vem * scale_factor * scale_y,
+            color=vem_color,
+            linewidth=2,
+            linestyle="-",
+            label="VEM",
+        )
+
+        # Predição NN
+        ax.plot(
+            positions,
+            y_nn * scale_factor * scale_y,
+            color=nn_color,
+            linewidth=2,
+            linestyle="--",
+            label="GNN",
+        )
+
+        # Banda de incerteza
+        if y_nn_std is not None:
+            lower = (y_nn - n_sigma * y_nn_std) * scale_factor * scale_y
+            upper = (y_nn + n_sigma * y_nn_std) * scale_factor * scale_y
+            ax.fill_between(
+                positions,
+                lower,
+                upper,
+                color=uncertainty_color,
+                alpha=uncertainty_alpha,
+                label=f"±{n_sigma}σ",
+            )
+
+        ax.set_xlabel("Posição (m)")
+        ax.set_title(title)
+        ax.grid(True, alpha=0.3)
+
+        # Anotação do erro
+        if error is not None:
+            ax.annotate(
+                f"MSE: {error:.2e}",
+                xy=(0.05, 0.95),
+                xycoords="axes fraction",
+                fontsize=10,
+                verticalalignment="top",
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.8),
+            )
+
+    # Ylabel apenas no primeiro subplot
+    axes[0].set_ylabel("Deslocamento (mm)")
+
+    # Legenda compartilhada
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=5, bbox_to_anchor=(0.5, 1.02))
+
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.88)
 
     return fig

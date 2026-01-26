@@ -35,7 +35,7 @@ data:
 
   # Pasta contendo o dataset (correspondente ao máximo deslocamento normalizado)
   # Exemplo: "rho_0.010" para rho_max = 0.010
-  rho_folder: "rho_0.010_E_fixed_102_elements"
+  rho_folder: "teste"
 
 # =============================================================================
 # CONFIGURAÇÕES DA ARQUITETURA DO MODELO GNN
@@ -68,7 +68,7 @@ model:
 # =============================================================================
 training:
   # Número de épocas de treinamento
-  epochs: 400
+  epochs: 250
 
   # Tamanho do batch de treinamento
   batch_size: 512

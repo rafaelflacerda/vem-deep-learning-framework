@@ -139,3 +139,6 @@ solver_vem/**/Makefile
 # =========================================================
 .python-version
 trash/
+
+# Re-ignore Jupyter checkpoints (even under data/)
+**/.ipynb_checkpoints/

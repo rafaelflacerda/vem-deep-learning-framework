@@ -10,7 +10,7 @@ Uso:
     python scripts/train_gnn.py
     
     # Usar configuração customizada
-    python scripts/train_gnn.py --config-path scripts/configs/test_small.yaml
+    python scripts/train_gnn.py --config-path scripts/configs/sweep_random.yaml
     
     # Usar configuração com override de parâmetro
     python scripts/train_gnn.py --config-path scripts/configs/default.yaml \\
@@ -40,6 +40,7 @@ from src.training.validation import split_dataset
 from src.training.metrics import compute_metrics
 from src.utils.logger import configure_logger
 from src.utils.visualization import (
+    plot_beam_cases_comparison_variable,
     plot_beam_cases_comparison,
     plot_loss_curves,
     plot_r2_curves,
@@ -303,14 +304,18 @@ def main():
         fit_scalers=True,
     )
     
-    logger.info("Dataset carregado: {} amostras, {} nós, {} features",
-                dataset.n_samples, dataset.n_nodes, dataset.n_features)
+    logger.info("Dataset carregado: {} amostras, {} features",
+                dataset.n_samples, dataset.n_features)
+    logger.info("Elementos por grafo: min={}, max={}, média={:.1f}",
+                dataset.metadata["n_elements_min"],
+                dataset.metadata["n_elements_max"],
+                dataset.metadata["n_elements_mean"])
     
     # Extrair posições dos nós para gráficos finais
     sample_data = torch.load(dataset_path, weights_only=False)
     feature_names = sample_data["metadata"]["feature_names"]["all"]
     x_idx = feature_names.index("x")
-    positions = sample_data["features"][0, :, x_idx].numpy()
+    #positions = sample_data["features"][0, :, x_idx].numpy()
     
     # =========================================================================
     # STEP 4: INSTANCIAR TRAINER E EXECUTAR TREINAMENTO
@@ -427,34 +432,53 @@ def main():
     # =========================================================================
     # STEP 6: PREPARAR DADOS PARA GRÁFICOS
     # =========================================================================
-    
+
+    # Com grafos de tamanhos variados, precisamos reconstruir por grafo
+# y_mean, y_true, y_std são tensores concatenados de todos os nós de todos os grafos
+
     n_val_samples = len(val_indices)
-    n_nodes = dataset.n_nodes
     
-    y_true_reshaped = y_true.reshape(n_val_samples, n_nodes)
-    y_mean_reshaped = y_mean.reshape(n_val_samples, n_nodes)
-    y_std_reshaped = y_std.reshape(n_val_samples, n_nodes)
+    # Reconstruir predições por grafo
+    y_true_per_graph = []
+    y_mean_per_graph = []
+    y_std_per_graph = []
+    positions_per_graph = []
     
-    # Selecionar casos representativos para visualizar
-    errors_per_sample = ((y_true_reshaped - y_mean_reshaped) ** 2).mean(axis=1)
+    offset = 0
+    for i, idx in enumerate(val_indices):
+        graph = dataset.data_list[idx]
+        n_nodes = graph.x.shape[0]
+        
+        y_true_per_graph.append(y_true[offset:offset + n_nodes].numpy())
+        y_mean_per_graph.append(y_mean[offset:offset + n_nodes].numpy())
+        y_std_per_graph.append(y_std[offset:offset + n_nodes].numpy())
+        
+        # Extrair posições x deste grafo (coluna x_idx das features originais)
+        positions_per_graph.append(graph.x[:, x_idx].numpy())
+        
+        offset += n_nodes
+    
+    # Calcular erro por amostra
+    errors_per_sample = np.array([
+        ((y_true_per_graph[i] - y_mean_per_graph[i]) ** 2).mean()
+        for i in range(n_val_samples)
+    ])
     
     best_idx = errors_per_sample.argmin()
     worst_idx = errors_per_sample.argmax()
     median_idx = np.argsort(errors_per_sample)[len(errors_per_sample) // 2]
     
-    # ADICIONE ISTO PARA RASTREAR OS IDS GLOBAIS
     best_sample_id = val_indices[best_idx]
     worst_sample_id = val_indices[worst_idx]
     median_sample_id = val_indices[median_idx]
-
-    # Logar os IDs globais também
+    
     logger.info("Casos selecionados para visualização:")
-    logger.info("  Melhor (idx local: {}, ID global: {}): MSE = {:.6e}", 
-                best_idx, best_sample_id, errors_per_sample[best_idx])
-    logger.info("  Mediano (idx local: {}, ID global: {}): MSE = {:.6e}", 
-                median_idx, median_sample_id, errors_per_sample[median_idx])
-    logger.info("  Pior (idx local: {}, ID global: {}): MSE = {:.6e}", 
-                worst_idx, worst_sample_id, errors_per_sample[worst_idx])
+    logger.info("  Melhor (idx local: {}, ID global: {}, n_nodes: {}): MSE = {:.6e}", 
+                best_idx, best_sample_id, len(y_true_per_graph[best_idx]), errors_per_sample[best_idx])
+    logger.info("  Mediano (idx local: {}, ID global: {}, n_nodes: {}): MSE = {:.6e}", 
+                median_idx, median_sample_id, len(y_true_per_graph[median_idx]), errors_per_sample[median_idx])
+    logger.info("  Pior (idx local: {}, ID global: {}, n_nodes: {}): MSE = {:.6e}", 
+                worst_idx, worst_sample_id, len(y_true_per_graph[worst_idx]), errors_per_sample[worst_idx])
     
     # =========================================================================
     # STEP 7: GERAR GRÁFICOS
@@ -490,33 +514,35 @@ def main():
     # Gráfico comparativo de vigas
     cases_data = [
         {
-            "y_vem": y_true_reshaped[best_idx],
-            "y_nn": y_mean_reshaped[best_idx],
-            "y_nn_std": y_std_reshaped[best_idx],
-            "title": "Melhor Caso",
+            "positions": positions_per_graph[best_idx],
+            "y_vem": y_true_per_graph[best_idx],
+            "y_nn": y_mean_per_graph[best_idx],
+            "y_nn_std": y_std_per_graph[best_idx],
+            "title": f"Melhor Caso ({len(y_true_per_graph[best_idx])} nós)",
             "error": errors_per_sample[best_idx],
         },
         {
-            "y_vem": y_true_reshaped[median_idx],
-            "y_nn": y_mean_reshaped[median_idx],
-            "y_nn_std": y_std_reshaped[median_idx],
-            "title": "Caso Mediano",
+            "positions": positions_per_graph[median_idx],
+            "y_vem": y_true_per_graph[median_idx],
+            "y_nn": y_mean_per_graph[median_idx],
+            "y_nn_std": y_std_per_graph[median_idx],
+            "title": f"Caso Mediano ({len(y_true_per_graph[median_idx])} nós)",
             "error": errors_per_sample[median_idx],
         },
         {
-            "y_vem": y_true_reshaped[worst_idx],
-            "y_nn": y_mean_reshaped[worst_idx],
-            "y_nn_std": y_std_reshaped[worst_idx],
-            "title": "Pior Caso",
+            "positions": positions_per_graph[worst_idx],
+            "y_vem": y_true_per_graph[worst_idx],
+            "y_nn": y_mean_per_graph[worst_idx],
+            "y_nn_std": y_std_per_graph[worst_idx],
+            "title": f"Pior Caso ({len(y_true_per_graph[worst_idx])} nós)",
             "error": errors_per_sample[worst_idx],
         },
     ]
     
-    fig = plot_beam_cases_comparison(
-        positions,
+    fig = plot_beam_cases_comparison_variable(
         cases_data,
         figsize=(15, 5),
-        scale_y = 1000.0,
+        scale_y=1000.0,
         undeformed_color="black",
         vem_color="#037A68",
         nn_color="#326273",
@@ -524,6 +550,7 @@ def main():
         uncertainty_alpha=0.25,
         n_sigma=2.0,
     )
+
     save_figure(fig, figures_dir / "beam_comparison", formats=["png"])
     logger.info("Salvo: beam_comparison.png")
     
