@@ -13,7 +13,7 @@ from .calibration import (
 )
 from .metrics import compute_metrics, compute_r2
 from .trainer import BeamGNNTrainer
-from .validation import get_kfold_splits, split_dataset
+from .validation import get_kfold_splits, split_dataset, split_dataset_stratified
 
 __all__ = [
     "BeamGNNTrainer",
@@ -24,4 +24,5 @@ __all__ = [
     "find_optimal_sigma_scale",
     "split_dataset",
     "get_kfold_splits",
+    "split_dataset_stratified",
 ]

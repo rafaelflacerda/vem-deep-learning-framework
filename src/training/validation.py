@@ -56,6 +56,65 @@ def split_dataset(
     
     return train_indices, val_indices
 
+def split_dataset_stratified(
+    dataset,
+    val_split: float,
+    seed: int = 42,
+) -> tuple[list[int], list[int]]:
+    """
+    Divide índices do dataset em treino e validação de forma estratificada por n_elements.
+    
+    Esta função garante que a proporção val_split seja respeitada dentro de cada
+    grupo de n_elements. Isso resulta em treino e validação com a mesma distribuição
+    de tamanhos de grafos, reduzindo oscilação na val_loss.
+    
+    Por exemplo, com val_split=0.30:
+    - Grafos com n_elements=5: 70% vão para treino, 30% para validação
+    - Grafos com n_elements=50: 70% vão para treino, 30% para validação
+    - E assim por diante para cada valor único de n_elements
+    
+    Args:
+        dataset: Dataset BeamGraphDataset completo. Cada elemento deve ter
+            o atributo n_elements acessível.
+        val_split: Fração dos dados reservada para validação (0.0 a 1.0).
+        seed: Seed para gerador aleatório, para reproducibilidade.
+        
+    Returns:
+        Tupla (train_indices, val_indices) onde cada elemento é uma lista
+        de inteiros representando os índices das amostras em cada conjunto.
+    """
+    # Agrupar índices por n_elements
+    from collections import defaultdict
+    
+    indices_by_n_elements: dict[int, list[int]] = defaultdict(list)
+    
+    for idx in range(len(dataset)):
+        n_elements = dataset.data_list[idx].n_elements
+        indices_by_n_elements[n_elements].append(idx)
+    
+    # Fazer split dentro de cada grupo
+    train_indices = []
+    val_indices = []
+    
+    generator = torch.Generator().manual_seed(seed)
+    
+    for n_elements in sorted(indices_by_n_elements.keys()):
+        group_indices = indices_by_n_elements[n_elements]
+        n_group = len(group_indices)
+        
+        # Embaralhar índices deste grupo
+        perm = torch.randperm(n_group, generator=generator).tolist()
+        shuffled_indices = [group_indices[i] for i in perm]
+        
+        # Calcular ponto de corte
+        n_val = int(n_group * val_split)
+        n_train = n_group - n_val
+        
+        # Dividir
+        train_indices.extend(shuffled_indices[:n_train])
+        val_indices.extend(shuffled_indices[n_train:])
+    
+    return train_indices, val_indices
 
 def get_kfold_splits(
     dataset: BeamGraphDataset,

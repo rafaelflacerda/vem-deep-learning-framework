@@ -5,6 +5,8 @@ Este script orquestra o treinamento completo: carrega configurações,
 valida parâmetros, setup de ambiente, executa treinamento via BeamGNNTrainer,
 avaliação com incerteza, e geração de gráficos.
 
+source .venv/bin/activate
+
 Uso:
     # Usar configuração padrão
     python scripts/train_gnn.py
@@ -13,9 +15,13 @@ Uso:
     python scripts/train_gnn.py --config-path scripts/configs/sweep_random.yaml
     
     # Usar configuração com override de parâmetro
-    python scripts/train_gnn.py --config-path scripts/configs/default.yaml \\
-        --override training.learning_rate=1e-3 training.epochs=100
+    python scripts/train_gnn.py --config-path scripts/configs/default.yaml --override training.learning_rate=1e-3 training.epochs=100
 """
+
+import os
+
+# Configurar timezone para GMT-3 (Brasília)
+os.environ["TZ"] = "America/Sao_Paulo"
 
 import sys
 import argparse
@@ -36,7 +42,7 @@ from src.config.experiment_config import ExperimentConfig
 from src.data.dataset import BeamGraphDataset
 from src.paths import create_experiment_dir, ensure_dir, paths
 from src.training.trainer import BeamGNNTrainer
-from src.training.validation import split_dataset
+from src.training.validation import split_dataset, split_dataset_stratified
 from src.training.metrics import compute_metrics
 from src.utils.logger import configure_logger
 from src.utils.visualization import (
@@ -49,6 +55,34 @@ from src.utils.visualization import (
 )
 from torch_geometric.loader import DataLoader
 
+# =============================================================================
+# FUNÇÕES AUXILIARES DE DEBUG
+# =============================================================================
+
+def log_system_info():
+    """Loga informações do sistema para debug."""
+    import platform
+    import torch_geometric
+    
+    logger.info("=" * 70)
+    logger.info("INFORMAÇÕES DO SISTEMA")
+    logger.info("=" * 70)
+    logger.info("Python: {}", platform.python_version())
+    logger.info("PyTorch: {}", torch.__version__)
+    logger.info("PyTorch Geometric: {}", torch_geometric.__version__)
+    logger.info("CUDA disponível: {}", torch.cuda.is_available())
+    
+    if torch.cuda.is_available():
+        logger.info("CUDA versão: {}", torch.version.cuda)
+        logger.info("cuDNN versão: {}", torch.backends.cudnn.version())
+        logger.info("GPUs detectadas: {}", torch.cuda.device_count())
+        for i in range(torch.cuda.device_count()):
+            props = torch.cuda.get_device_properties(i)
+            logger.info("  GPU {}: {} ({:.1f} GB)", i, props.name, props.total_memory / 1e9)
+    
+    logger.info("CPU cores: {}", os.cpu_count())
+    logger.info("=" * 70)
+    logger.info("")
 
 # =============================================================================
 # ARGUMENTOS DE LINHA DE COMANDO
@@ -170,17 +204,18 @@ def apply_config_overrides(config: ExperimentConfig, overrides: list[str]) -> Ex
 
 def get_device() -> torch.device:
     """
-    Retorna o melhor device disponível: CUDA > MPS > CPU.
+    Retorna o melhor device disponível: CUDA > MPS.
     
     Prioridade:
     1. CUDA (NVIDIA GPUs) - melhor performance
     2. MPS (Apple Silicon) - boa performance em Macs
-    3. CPU - fallback
+    
+    Raises:
+        RuntimeError: Se nenhuma GPU estiver disponível.
     
     Returns:
         Device PyTorch para treinamento.
     """
-    # Tentar CUDA primeiro (NVIDIA)
     if torch.cuda.is_available():
         device = torch.device("cuda")
         gpu_name = torch.cuda.get_device_name(0)
@@ -188,12 +223,21 @@ def get_device() -> torch.device:
         logger.info("Usando device: CUDA")
         logger.info("GPU: {} ({:.1f} GB VRAM)", gpu_name, gpu_memory)
         
-        # Configurações de otimização para CUDA
-        torch.backends.cudnn.benchmark = True  # Otimiza convoluções
-        torch.backends.cuda.matmul.allow_tf32 = True  # Usa TF32 para matmul
-        torch.backends.cudnn.allow_tf32 = True  # Usa TF32 para convs
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
         
         return device
+    
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        logger.info("Usando device: MPS (Apple Silicon)")
+        return torch.device("mps")
+    
+    raise RuntimeError(
+        "Nenhuma GPU disponível (CUDA ou MPS). "
+        "Este script requer GPU para treinamento. "
+        "Verifique se os drivers estão instalados corretamente ou reinicie o container/pod."
+    )
 
 
 # =============================================================================
@@ -213,6 +257,8 @@ def main():
     6. Gerar gráficos de resultado
     7. Salvar artefatos (modelo, métricas, histórico)
     """
+
+    log_system_info()
     
     # =========================================================================
     # STEP 1: CARREGAR E VALIDAR CONFIGURAÇÃO
@@ -231,6 +277,8 @@ def main():
     if args.override:
         logger.info("Aplicando overrides de linha de comando...")
         config = apply_config_overrides(config, args.override)
+
+    logger.info("")
     
     # =========================================================================
     # STEP 2: SETUP INICIAL (LOGGER, DEVICE, DIRETÓRIO)
@@ -257,6 +305,7 @@ def main():
             logger.info("{}:", section_name.upper())
             for key, value in section_data.items():
                 logger.info("  {}: {}", key, value)
+            logger.info("")
         else:
             logger.info("{}: {}", section_name, section_data)
         
@@ -279,6 +328,7 @@ def main():
     )
     
     logger.info("W&B inicializado: projeto beam-gnn-hpo, experimento: {}", exp_dir.name)
+    logger.info("")
     
     # =========================================================================
     # STEP 3: CARREGAR DATASET
@@ -310,6 +360,7 @@ def main():
                 dataset.metadata["n_elements_min"],
                 dataset.metadata["n_elements_max"],
                 dataset.metadata["n_elements_mean"])
+    logger.info("")
     
     # Extrair posições dos nós para gráficos finais
     sample_data = torch.load(dataset_path, weights_only=False)
@@ -323,16 +374,27 @@ def main():
     
     logger.info("Inicializando trainer...")
     trainer = BeamGNNTrainer(config, device)
+    logger.info("")
+
+    # Log da arquitetura do modelo
+    total_params = sum(p.numel() for p in trainer.model.parameters())
+    trainable_params = sum(p.numel() for p in trainer.model.parameters() if p.requires_grad)
+    logger.info("Arquitetura do modelo:")
+    logger.info("  Parâmetros totais: {:,}", total_params)
+    logger.info("  Parâmetros treináveis: {:,}", trainable_params)
+    logger.info("  Tamanho estimado em memória: {:.2f} MB", total_params * 4 / 1024 / 1024)
+    logger.info("")
     
     # Executar treinamento (fixed split ou k-fold)
     if config.cv_mode == "fixed":
         logger.info("Modo de validação: split fixo")
         
         # Dividir dataset
-        train_indices, val_indices = split_dataset(
+        train_indices, val_indices = split_dataset_stratified(
             dataset, config.data.val_split
         )
         logger.info("Split: {} treino, {} validação", len(train_indices), len(val_indices))
+        logger.info("")
         
         # Criar dataloaders
         train_dataset = torch.utils.data.Subset(dataset, train_indices)
@@ -342,20 +404,23 @@ def main():
             train_dataset,
             batch_size=config.training.batch_size,
             shuffle=True,
-            num_workers = 4,
+            num_workers = 8,
             pin_memory = True,
             persistent_workers = True,
+            prefetch_factor = 4,
         )
         val_loader = DataLoader(
             val_dataset,
             batch_size=config.training.batch_size,
             shuffle=False,
-            num_workers = 4,
+            num_workers = 8,
             pin_memory = True,
             persistent_workers = True,
+            prefetch_factor = 4,
         )
         
         # Treinar
+        logger.info("")
         logger.info("Iniciando treinamento...")
         training_result = trainer.run_fixed_split(train_loader, val_loader, exp_dir)
         
@@ -396,6 +461,8 @@ def main():
         )
     else:
         raise ValueError(f"cv_mode inválido: {config.cv_mode}")
+
+    logger.info("")
     
     # =========================================================================
     # STEP 5: AVALIAÇÃO FINAL COM INCERTEZA
@@ -423,11 +490,13 @@ def main():
     # Calcular métricas finais
     metrics = compute_metrics(y_true, y_mean)
     
+    logger.info("")
     logger.info("Métricas finais (valores físicos):")
     logger.info("  MSE:  {:.6e}", metrics["mse"])
     logger.info("  RMSE: {:.6e}", metrics["rmse"])
     logger.info("  MAE:  {:.6e}", metrics["mae"])
     logger.info("  R²:   {:.6f}", metrics["r2"])
+    logger.info("")
     
     # =========================================================================
     # STEP 6: PREPARAR DADOS PARA GRÁFICOS
@@ -479,6 +548,8 @@ def main():
                 median_idx, median_sample_id, len(y_true_per_graph[median_idx]), errors_per_sample[median_idx])
     logger.info("  Pior (idx local: {}, ID global: {}, n_nodes: {}): MSE = {:.6e}", 
                 worst_idx, worst_sample_id, len(y_true_per_graph[worst_idx]), errors_per_sample[worst_idx])
+
+    logger.info("")
     
     # =========================================================================
     # STEP 7: GERAR GRÁFICOS
@@ -553,6 +624,8 @@ def main():
 
     save_figure(fig, figures_dir / "beam_comparison", formats=["png"])
     logger.info("Salvo: beam_comparison.png")
+
+    logger.info("")
     
     
 # =========================================================================
@@ -636,6 +709,8 @@ def main():
         exp_dir / "training_history.pt",
     )
     logger.info("Histórico de treinamento salvo em: training_history.pt")
+
+    logger.info("")
     
     # =========================================================================
     # FINALIZAÇÃO
@@ -649,4 +724,29 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        logger.warning("Treinamento interrompido pelo usuário (Ctrl+C)")
+        try:
+            wandb.finish(exit_code=1)
+        except:
+            pass
+        sys.exit(1)
+    except Exception as e:
+        logger.error("=" * 70)
+        logger.error("ERRO DURANTE EXECUÇÃO")
+        logger.error("=" * 70)
+        logger.error("Tipo do erro: {}", type(e).__name__)
+        logger.error("Mensagem: {}", str(e))
+        logger.error("=" * 70)
+        
+        import traceback
+        logger.error("Traceback completo:\n{}", traceback.format_exc())
+        
+        try:
+            wandb.finish(exit_code=1)
+        except:
+            pass
+        
+        raise

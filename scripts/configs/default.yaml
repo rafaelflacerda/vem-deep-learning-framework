@@ -23,7 +23,7 @@ data:
 
   # Tamanho do dataset a carregar
   # Deve ser um dos tamanhos pré-processados disponíveis
-  dataset_size: 25000
+  dataset_size: 2500
 
   # Fração dos dados reservada para validação (0.0 a 1.0)
   # Exemplo: 0.30 significa 30% para validação, 70% para treino
