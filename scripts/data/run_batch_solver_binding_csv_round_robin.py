@@ -9,7 +9,7 @@ Formato do CSV de saída:
 case_id,n_elements,displacements,rotations
 
 Uso:
-  uv run --active python scripts/dataset_generator/run_batch_solver_binding_csv.py --n_samples 1000 --num_workers 8
+  uv run --active python scripts/data/run_batch_solver_binding_csv.py --n_samples 10000 --num_workers 8
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ import numpy as np
 from src.paths import paths
 
 # --- Paths (sem hardcode) ---
-PARAMS_DIR = paths.data.raw / "Sobol" / "params" / "rho_0.010_E_fixed_102_elements_biapoiada"
-RESULTS_DIR = paths.data.raw / "Sobol" / "results" / "rho_0.010_E_fixed_102_elements_biapoiada"
+PARAMS_DIR = paths.data.raw / "Sobol" / "params" / "rho_0.010_E_fixed_102_elements"
+RESULTS_DIR = paths.data.raw / "Sobol" / "results" / "rho_0.010_E_fixed_102_elements"
 
 # --- Config editável ---
 N_ELEMENTS_LIST = [102]  # round-robin
@@ -212,7 +212,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Gera dataset VEM 1D via binding (CSV→CSV)"
     )
-    parser.add_argument("--n_samples", type=int, required=True, default=100)
+    parser.add_argument("--n_samples", type=int, required=True, default=10)
     parser.add_argument(
         "--num_workers", type=int, default=max(1, (os.cpu_count() or 8) - 2)
     )

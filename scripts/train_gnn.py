@@ -38,6 +38,7 @@ from src.paths import create_experiment_dir, ensure_dir, paths
 from src.training.trainer import BeamGNNTrainer
 from src.training.validation import split_dataset
 from src.training.metrics import compute_metrics
+from src.training.calibration import compute_calibration_metrics
 from src.utils.logger import configure_logger
 from src.utils.visualization import (
     plot_beam_cases_comparison,
@@ -419,6 +420,22 @@ def main():
     logger.info("  MAE:  {:.6e}", metrics["mae"])
     logger.info("  R²:   {:.6f}", metrics["r2"])
     
+    # Calcular métricas de calibração da incerteza
+    calibration_metrics = compute_calibration_metrics(
+        y_true.numpy(),
+        y_mean.numpy(),
+        y_std.numpy(),
+    )
+    
+    logger.info("Métricas de calibração da incerteza:")
+    logger.info("  Coverage 50%: {:.3f} (nominal: 0.50)", calibration_metrics["coverage_50"])
+    logger.info("  Coverage 68%: {:.3f} (nominal: 0.68)", calibration_metrics["coverage_68"])
+    logger.info("  Coverage 90%: {:.3f} (nominal: 0.90)", calibration_metrics["coverage_90"])
+    logger.info("  Coverage 95%: {:.3f} (nominal: 0.95)", calibration_metrics["coverage_95"])
+    logger.info("  NLL: {:.4f}", calibration_metrics["nll"])
+    logger.info("  Z-score mean: {:.4f} (ideal: 0.0)", calibration_metrics["zscore_mean"])
+    logger.info("  Z-score std: {:.4f} (ideal: 1.0)", calibration_metrics["zscore_std"])
+    
     # =========================================================================
     # STEP 6: PREPARAR DADOS PARA GRÁFICOS
     # =========================================================================
@@ -547,6 +564,13 @@ def main():
         "final_mae": metrics["mae"],
         "final_r2": metrics["r2"],
         "best_epoch": best_epoch,
+        "calibration_coverage_50": calibration_metrics["coverage_50"],
+        "calibration_coverage_68": calibration_metrics["coverage_68"],
+        "calibration_coverage_90": calibration_metrics["coverage_90"],
+        "calibration_coverage_95": calibration_metrics["coverage_95"],
+        "calibration_nll": calibration_metrics["nll"],
+        "calibration_zscore_mean": calibration_metrics["zscore_mean"],
+        "calibration_zscore_std": calibration_metrics["zscore_std"],
     })
     wandb.finish()
     logger.info("W&B finalizado")

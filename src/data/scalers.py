@@ -153,13 +153,14 @@ class NoScaler(BaseScaler):
 
     def load_state_dict(self, state: dict) -> None:
         pass
-    
+
+
 class RobustScaler(BaseScaler):
     """
     Normaliza usando mediana e IQR (intervalo interquartil).
-    
+
     z = (x - median) / IQR
-    
+
     Muito mais robusto a outliers que StandardScaler.
     IQR = Q3 - Q1 (percentil 75 - percentil 25)
     """

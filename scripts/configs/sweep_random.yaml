@@ -11,68 +11,70 @@ metric:
 parameters:
   # Ativação (2 opções)
   model.activation:
-    values: ["silu", "gelu"]
+    values: ["gelu"]
   
   # Learning rate (contínuo, em escala log)
   training.learning_rate:
     distribution: log_uniform_values
-    min: 0.0001
-    max: 0.01
+    min: 0.000001
+    max: 0.002
   
   # Número de camadas (discreto)
   model.num_layers:
-    values: [9, 10, 11, 12]
+    values: [10, 11, 12]
   
   # Dropout (discreto)
   model.dropout:
-    min: 0.05
-    max: 0.10
+    distribution: uniform
+    min: 0.06
+    max: 0.12
   
   # Hidden dimension (discreto)
   model.hidden_dim:
-    values: [32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256]
+    values: [64, 80, 96, 112, 128, 160, 192, 224, 256]
 
   # Loss type (2 opções)
   
   training.huber_delta:
-    min: 0.5
-    max: 1.5
+    distribution: uniform
+    min: 0.4
+    max: 1.2
 
   # Scheduler factor (para ReduceLROnPlateau)
   training.scheduler_factor:
-    min: 0.5
+    distribution: uniform
+    min: 0.7
     max: 0.9
   
   # Scheduler patience
   training.scheduler_patience:
-    values: [10, 15, 20, 25, 30]
+    values: [20, 25, 30]
   
   # AdamW beta1
   training.adamw_beta1:
-    min: 0.95
-    max: 0.99
+    distribution: uniform
+    min: 0.930
+    max: 0.999
   
   # AdamW beta2
   training.adamw_beta2:
-    min: 0.990
-    max: 0.995
+    distribution: uniform
+    min: 0.980
+    max: 0.999
   
   # AdamW epsilon
   training.adamw_epsilon:
     distribution: log_uniform_values
-    min: 1.0e-9
-    max: 1.0e-6
+    min: 5.0e-10
+    max: 5.0e-7
 
   cv_mode:
-    values: ["fixed", "kfold"]
-
-  n_folds:
-    values: [5, 10]
+    values: ["fixed"]
 
   training.batch_size:
-    values: [128, 256, 512, 1024]
+    values: [1024, 2048]
 
   training.weight_decay:
     distribution: log_uniform_values
-    min: 1.0e-5
-    max: 1.0e-3
+    min: 0.00000050
+    max: 0.00050000

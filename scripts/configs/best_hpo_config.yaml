@@ -1,0 +1,43 @@
+# Configuração extraída do experimento 2026-01-21_015844_gnn_beam
+# Melhor configuração encontrada até agora
+
+data:
+  sampling_method: Sobol
+  dataset_size: 10000
+  val_split: 0.3
+  scaler_type: minmax
+  rho_folder: rho_0.010_E_fixed_102_elements
+
+model:
+  input_dim: 10
+  hidden_dim: 64
+  output_dim: 1
+  num_layers: 11
+  dropout: 0.08474839055680679
+  activation: gelu
+
+training:
+  epochs: 500
+  batch_size: 128
+  learning_rate: 0.0007227144615590418
+  weight_decay: 0.0001405957426544637
+  loss_type: huber
+  huber_delta: 0.6490333831972831
+  optimizer_type: adamw
+  scheduler_type: reduce_lr_on_plateau
+  scheduler_patience: 30
+  scheduler_factor: 0.7522221705160412
+  scheduler_t_max: 100
+  scheduler_step_size: 10
+  adamw_beta1: 0.9778701672004468
+  adamw_beta2: 0.9932886082086502
+  adamw_epsilon: 9.63066085110135e-07
+  sgd_momentum: 0.9
+  sgd_nesterov: true
+
+evaluation:
+  mc_samples: 50
+  n_profile_samples: 6
+
+cv_mode: fixed
+n_folds: 10

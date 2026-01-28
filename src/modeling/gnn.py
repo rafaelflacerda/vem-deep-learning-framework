@@ -13,14 +13,15 @@ import torch
 import torch.nn as nn
 from torch_geometric.nn import GCNConv
 
+
 def _get_activation(activation_str: str) -> nn.Module:
     """
     Retorna o módulo de activation baseado em string.
-    
+
     Suporta: relu, silu, gelu, tanh, selu.
     """
     activation_str = activation_str.lower()
-    
+
     if activation_str == "relu":
         return nn.ReLU()
     elif activation_str == "silu":
@@ -57,13 +58,13 @@ class BeamGNN(nn.Module):
         activation: str = "relu",
     ):
         super().__init__()
-        
+
         self.activation = _get_activation(activation)
 
         self.dropout_rate = dropout
 
         # Encoder: features brutas -> espaço latente
-        
+
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             self.activation,  # <-- USE AQUI

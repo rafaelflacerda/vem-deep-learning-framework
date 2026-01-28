@@ -4,10 +4,7 @@ Geração de amostras de parâmetros para o solver VEM usando Sobol sampling.
 Os parâmetros E e I são amostrados em escala logarítmica (variam em ordens de magnitude).
 O parâmetro L é amostrado em escala linear.
 
-Mudança principal:
-- Em vez de amostrar q e depois rejeitar por rho, agora amostramos (E, I, L) e
-  calculamos q_max_case a partir do limite rho_max, e então amostramos q (log-uniforme)
-  dentro do intervalo [q_min, min(q_max_global, q_max_case)].
+Versão simplificada: E e q são fixos, apenas I e L são amostrados.
 """
 
 import json
@@ -33,20 +30,19 @@ BLOCK_SIZE = 1024
 MAX_ITERATIONS = 25000
 
 # Ranges dos parâmetros
-# E e I: definidos em escala log10 (ex: [9, 11] significa 10^9 a 10^11 Pa)
+# I: definido em escala log10
 # L: definido em escala linear
-# q: definido em escala log10
 PARAM_RANGES = {
-    #"E_log10": (10.84, 11.32),  # Alumínio (70 GPa) até aço (210 GPa)
-    "I_log10": (-6.0, -3.0),  # 10^-6 a 10^-3 m^4
-    "L": (1.0, 10.0),  # 1 a 10 m
-    "q_log10": (2.0, 5.0),  # 10^2 a 10^5 N/m
+    "I_log10": (-5.0, -3.0),  # 10^-6 a 10^-3 m^4
+    "L": (1.0, 8.0),  # 1 a 10 m
 }
 
 # Critério de pequenos deslocamentos: rho = w_max/L < RHO_MAX
-RHO_MAX = 0.01
+RHO_MAX = 0.02
 
-E_fixed = 200e9
+# Valores fixos de E e q
+E_FIXED = 200e9  # 200 GPa (aço)
+Q_FIXED = 5000.0  # 5 kN/m
 
 # Seed para reprodutibilidade (None para não fixar)
 SEED = 42
@@ -57,19 +53,14 @@ SEED = 42
 # =============================================================================
 
 
-def transform_e_i_l(samples: np.ndarray, ranges: dict) -> np.ndarray:
+def transform_i_l(samples: np.ndarray, ranges: dict) -> np.ndarray:
     """
-    Transforma amostras de [0,1]^3 para os ranges físicos de E, I, L.
+    Transforma amostras de [0,1]^2 para os ranges físicos de I, L.
 
-    Colunas de retorno: [E, I, L]
+    Colunas de retorno: [I, L]
     """
     n = samples.shape[0]
     out = np.zeros((n, 2), dtype=np.float64)
-
-    # E: escala log
-    # E_log_min, E_log_max = ranges["E_log10"]
-    # E_log = E_log_min + samples[:, 0] * (E_log_max - E_log_min)
-    # out[:, 0] = 10**E_log
 
     # I: escala log
     I_log_min, I_log_max = ranges["I_log10"]
@@ -83,21 +74,7 @@ def transform_e_i_l(samples: np.ndarray, ranges: dict) -> np.ndarray:
     return out
 
 
-def sample_q_log_uniform(u: np.ndarray, q_min: float, q_max: np.ndarray) -> np.ndarray:
-    """
-    Amostra q com distribuição log-uniforme no intervalo [q_min, q_max_i] para cada caso i.
-
-    u: vetor em [0,1] (um por amostra)
-    q_max: vetor (N,) com máximo permitido por caso
-    """
-    log_qmin = np.log10(q_min)
-    log_qmax = np.log10(q_max)
-    return 10 ** (log_qmin + u * (log_qmax - log_qmin))
-
-
-def compute_rho_from_components(
-    E: np.ndarray, I: np.ndarray, L: np.ndarray, q: np.ndarray
-) -> np.ndarray:
+def compute_rho(E: float, I: np.ndarray, L: np.ndarray, q: float) -> np.ndarray:
     """Calcula rho = q*L^3/(8*E*I) vetorizado."""
     return q * (L**3) / (8.0 * E * I)
 
@@ -106,6 +83,8 @@ def generate_valid_samples(
     n_target: int,
     ranges: dict,
     rho_max: float,
+    E_fixed: float,
+    q_fixed: float,
     block_size: int,
     max_iterations: int,
     seed: int | None = None,
@@ -113,22 +92,13 @@ def generate_valid_samples(
     """
     Gera amostras Sobol em blocos até atingir n_target amostras válidas.
 
-    Estratégia nova (sem rejection por rho):
-      1) Amostra (E, I, L) via Sobol
-      2) Calcula q_max_case = 8*rho_max*E*I/L^3
-      3) Define q_max_effective = min(q_max_global, q_max_case)
-      4) Só mantém casos com q_max_effective > q_min
-      5) Amostra q log-uniforme em [q_min, q_max_effective] usando um u~U(0,1)
+    Com E e q fixos, amostramos apenas (I, L) e filtramos por rho <= rho_max.
 
     Retorna:
         - Array (n_target, 4) com colunas [E, I, L, q]
         - Dicionário com estatísticas da geração
     """
-    sampler = Sobol(d=3, scramble=True, seed=seed)
-
-    q_log_min, q_log_max = ranges["q_log10"]
-    q_min = 10**q_log_min
-    q_max_global = 10**q_log_max
+    sampler = Sobol(d=2, scramble=True, seed=seed)
 
     valid_samples: list[np.ndarray] = []
     total_generated = 0
@@ -139,44 +109,27 @@ def generate_valid_samples(
         raw_block = sampler.random(block_size)
         total_generated += block_size
 
-        # Usa 3 dimensões para (E, I, L) e a 4ª como "u" para amostrar q
-        eil = transform_e_i_l(raw_block[:, :2], ranges)
-        #E = eil[:, 0]
-        I = eil[:, 0]
-        L = eil[:, 1]
-        u = raw_block[:, 2]
+        # Transforma para I e L
+        il = transform_i_l(raw_block, ranges)
+        I = il[:, 0]
+        L = il[:, 1]
 
-        # Limite por rho: q < 8*rho_max*E*I/L^3
-        q_max_case = 8.0 * rho_max * E_fixed * I / (L**3)
+        # Calcula rho para cada amostra
+        rho = compute_rho(E_fixed, I, L, q_fixed)
 
-        # Limite final: não pode passar do q_max_global
-        q_max_effective = np.minimum(q_max_global, q_max_case)
-
-        # Mantém apenas casos com intervalo viável
-        mask = q_max_effective > q_min
+        # Filtra amostras que satisfazem o critério de pequenos deslocamentos
+        mask = rho <= rho_max
         rejected_in_block = int((~mask).sum())
         total_rejected += rejected_in_block
 
         if mask.any():
-            q = sample_q_log_uniform(u[mask], q_min=q_min, q_max=q_max_effective[mask])
+            I_valid = I[mask]
+            L_valid = L[mask]
 
-            # Monta amostras [E, I, L, q]
-            E_array = np.full(len(I[mask]), E_fixed)
-            samples_block = np.column_stack([E_array, I[mask], L[mask], q])
-
-            # (Opcional, mas seguro): checa numericamente rho <= rho_max (deve sempre passar)
-            # Se quiser manter 100% "hard", dá pra remover essa checagem.
-            rho = compute_rho_from_components(
-                samples_block[:, 0],
-                samples_block[:, 1],
-                samples_block[:, 2],
-                samples_block[:, 3],
-            )
-            safe_mask = rho <= rho_max * (1.0 + 1e-12)  # tolerância numérica
-            samples_block = samples_block[safe_mask]
-
-            for sample in samples_block:
+            # Monta amostras [E, I, L, q] com E e q fixos
+            for i in range(len(I_valid)):
                 if len(valid_samples) < n_target:
+                    sample = np.array([E_fixed, I_valid[i], L_valid[i], q_fixed])
                     valid_samples.append(sample)
 
         iteration += 1
@@ -184,7 +137,7 @@ def generate_valid_samples(
     stats = {
         "target": n_target,
         "generated": total_generated,
-        "rejected": total_rejected,  # rejeitados por "intervalo inviável" (q_max <= q_min)
+        "rejected": total_rejected,
         "acceptance_rate": (
             (total_generated - total_rejected) / total_generated
             if total_generated > 0
@@ -192,8 +145,8 @@ def generate_valid_samples(
         ),
         "iterations": iteration,
         "rho_max": rho_max,
-        "q_min": q_min,
-        "q_max_global": q_max_global,
+        "E_fixed": E_fixed,
+        "q_fixed": q_fixed,
     }
 
     return np.array(valid_samples), stats
@@ -220,20 +173,24 @@ def save_samples(samples: np.ndarray, output_dir: Path, n_samples: int) -> None:
 
 def main():
     print(f"Gerando {N_TARGET} amostras válidas via Sobol...")
-    print(f"Critério: rho < {RHO_MAX} (via q_max_case)")
+    print(f"E fixo: {E_FIXED:.2e} Pa")
+    print(f"q fixo: {Q_FIXED:.2e} N/m")
+    print(f"Critério: rho < {RHO_MAX}")
     print()
 
     samples, stats = generate_valid_samples(
         n_target=N_TARGET,
         ranges=PARAM_RANGES,
         rho_max=RHO_MAX,
+        E_fixed=E_FIXED,
+        q_fixed=Q_FIXED,
         block_size=BLOCK_SIZE,
         max_iterations=MAX_ITERATIONS,
         seed=SEED,
     )
 
     print(f"Amostras geradas (tentadas): {stats['generated']}")
-    print(f"Amostras rejeitadas (q_max_case <= q_min): {stats['rejected']}")
+    print(f"Amostras rejeitadas (rho > {RHO_MAX}): {stats['rejected']}")
     print(f"Taxa de aceitação: {stats['acceptance_rate']:.1%}")
     print(f"Iterações necessárias: {stats['iterations']}")
     print(f"Amostras válidas obtidas: {len(samples)}")
@@ -244,13 +201,8 @@ def main():
         print("Considere ajustar os ranges ou aumentar MAX_ITERATIONS.")
         print()
 
-    # Agora usando o seu gerenciador de paths
-    if RHO_MAX == 0.05:
-        output_dir = paths.data.raw / "Sobol" / "params" / "rho_0.050"
-    elif RHO_MAX == 0.01:
-        output_dir = paths.data.raw / "Sobol" / "params" / "rho_0.010_E_fixed_102_elements"
-    elif RHO_MAX == 0.025:
-        output_dir = paths.data.raw / "Sobol" / "params" / "rho_0.025"
+    # Diretório de saída
+    output_dir = paths.data.raw / "Sobol" / "params" / "rho_0.010_E_q_fixed"
 
     print(f"Salvando em {output_dir}/ ...")
     save_samples(samples, output_dir, len(samples))

@@ -12,11 +12,25 @@ from .experiment_config import (
     ModelConfig,
     TrainingConfig,
 )
+from .refinement_config import (
+    AdaptiveRefinementConfig,
+    BeamConfig,
+    ModelConfig as RefinementModelConfig,
+    RefinementConfig,
+    VisualizationConfig,
+)
 
 __all__ = [
+    # Configurações de experimento (treinamento)
     "DataConfig",
     "ModelConfig",
     "TrainingConfig",
     "EvaluationConfig",
     "ExperimentConfig",
+    # Configurações de refinamento adaptativo
+    "AdaptiveRefinementConfig",
+    "BeamConfig",
+    "RefinementModelConfig",
+    "RefinementConfig",
+    "VisualizationConfig",
 ]
