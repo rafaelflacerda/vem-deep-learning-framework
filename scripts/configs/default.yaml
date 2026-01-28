@@ -23,7 +23,7 @@ data:
 
   # Tamanho do dataset a carregar
   # Deve ser um dos tamanhos pré-processados disponíveis
-  dataset_size: 25000
+  dataset_size: 2500
 
   # Fração dos dados reservada para validação (0.0 a 1.0)
   # Exemplo: 0.30 significa 30% para validação, 70% para treino
@@ -35,7 +35,7 @@ data:
 
   # Pasta contendo o dataset (correspondente ao máximo deslocamento normalizado)
   # Exemplo: "rho_0.010" para rho_max = 0.010
-  rho_folder: "rho_0.010_E_fixed_102_elements"
+  rho_folder: "rho_0.010_E_q_fixed"
 
 # =============================================================================
 # CONFIGURAÇÕES DA ARQUITETURA DO MODELO GNN
@@ -43,7 +43,7 @@ data:
 model:
   # Dimensão de entrada (número de features por nó)
   # Deve corresponder ao número de features geradas no preprocessing
-  input_dim: 10
+  input_dim: 9
 
   # Dimensão do espaço latente (hidden representations)
   # Controla a capacidade de aprendizado do modelo

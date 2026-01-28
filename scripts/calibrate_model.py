@@ -8,9 +8,11 @@ e salva os resultados no diretório do experimento.
 O modelo treinado NÃO é modificado. Apenas o fator de escala T é calculado
 e salvo para ser aplicado durante a inferência.
 
+workspace/vem-deep-learning-framework/results/experiments/2026-01-27_222543_gnn_beam
+
 Uso:
     # Calibrar usando caminho do experimento
-    python scripts/calibrate_model.py --exp-dir results/experiments/2026-01-20_235324_gnn_beam
+    python scripts/calibrate_model.py --exp-dir results/experiments/2026-01-27_222543_gnn_beam
     
     # Calibrar o experimento mais recente
     python scripts/calibrate_model.py --latest

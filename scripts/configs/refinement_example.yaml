@@ -1,0 +1,30 @@
+# Configuração de exemplo para refinamento adaptativo
+
+# Parâmetros da viga (do catálogo ou definidos pelo usuário)
+beam:
+  I: 1.0e-4          # Momento de inércia [m^4]
+  L: 4.0             # Comprimento [m]
+  q: 5000.0         # Carregamento distribuído [N/m]
+  E: 200.0e9         # Módulo de elasticidade [Pa]
+
+# Configuração do modelo treinado
+model:
+  experiment_dir: "results/experiments/2026-01-27_222543_gnn_beam"   # Caminho ou "latest" para o mais recente
+  mc_samples: 50             # Forward passes para MC Dropout
+  use_calibration: false      # Usar fator de calibração se disponível
+
+# Configuração do refinamento
+refinement:
+  initial_nodes: 5           # Nós na malha inicial
+  lambda_weight: 0        # 0 = incerteza pura, 1 = curvatura pura
+  uncertainty_threshold: 0.01  # Threshold de parada [m] (0.5 mm)
+  max_nodes: 110              # Limite de nós
+  max_iterations: 100         # Limite de iterações
+  nodes_per_iteration: 5     # Nós a adicionar por iteração
+  node_placement: "midpoint" # Estratégia de posicionamento
+
+# Visualização
+visualization:
+  save_figures: true
+  save_each_iteration: true
+  output_dir: null           # null = automático com timestamp
