@@ -54,7 +54,8 @@ class BeamGNNTrainer:
             output_dim=config.model.output_dim,
             num_layers=config.model.num_layers,
             dropout=config.model.dropout,
-            activation=config.model.activation, 
+            activation=config.model.activation,
+            use_layer_norm=config.model.use_layer_norm,
         )
         self.model = self.model.to(device)
 

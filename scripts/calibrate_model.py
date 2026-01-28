@@ -180,8 +180,12 @@ def main():
         fit_scalers=True,
     )
     
-    logger.info("Dataset carregado: {} amostras, {} nós, {} features",
-                dataset.n_samples, dataset.n_nodes, dataset.n_features)
+    logger.info("Dataset carregado: {} amostras, {} features",
+                dataset.n_samples, dataset.n_features)
+    logger.info("Elementos por grafo: min={}, max={}, média={:.1f}",
+                dataset.metadata["n_elements_min"],
+                dataset.metadata["n_elements_max"],
+                dataset.metadata["n_elements_mean"])
     
     # Criar split de validação (mesmo split usado no treinamento)
     train_indices, val_indices = split_dataset(dataset, config.data.val_split)

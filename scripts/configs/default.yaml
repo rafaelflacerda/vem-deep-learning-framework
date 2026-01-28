@@ -23,7 +23,7 @@ data:
 
   # Tamanho do dataset a carregar
   # Deve ser um dos tamanhos pré-processados disponíveis
-  dataset_size: 2500
+  dataset_size: 25000
 
   # Fração dos dados reservada para validação (0.0 a 1.0)
   # Exemplo: 0.30 significa 30% para validação, 70% para treino
@@ -35,7 +35,7 @@ data:
 
   # Pasta contendo o dataset (correspondente ao máximo deslocamento normalizado)
   # Exemplo: "rho_0.010" para rho_max = 0.010
-  rho_folder: "teste"
+  rho_folder: "rho_0.010_E_fixed_102_elements"
 
 # =============================================================================
 # CONFIGURAÇÕES DA ARQUITETURA DO MODELO GNN
@@ -62,6 +62,8 @@ model:
   # Aplicado em cada camada para evitar overfitting
   # Também usado para MC Dropout durante avaliação (estimação de incerteza)
   dropout: 0.1
+
+  use_layer_norm: True
 
 # =============================================================================
 # CONFIGURAÇÕES DE TREINAMENTO E OTIMIZAÇÃO

@@ -7,20 +7,22 @@ Arquitetura baseada em MeshGraphNet simplificada:
 - Decoder: MLP que projeta de volta para predição de deslocamento
 
 MC Dropout é usado para quantificação de incerteza.
+LayerNorm é aplicado para estabilidade do treinamento (seguindo MeshGraphNet).
 """
 
 import torch
 import torch.nn as nn
 from torch_geometric.nn import GCNConv
 
+
 def _get_activation(activation_str: str) -> nn.Module:
     """
     Retorna o módulo de activation baseado em string.
-    
+
     Suporta: relu, silu, gelu, tanh, selu.
     """
     activation_str = activation_str.lower()
-    
+
     if activation_str == "relu":
         return nn.ReLU()
     elif activation_str == "silu":
@@ -45,6 +47,8 @@ class BeamGNN(nn.Module):
         output_dim: Dimensão da saída (1 para deslocamento vertical).
         num_layers: Número de camadas de message passing.
         dropout: Taxa de dropout (usado em treinamento e para MC Dropout na inferência).
+        activation: Função de ativação ('relu', 'silu', 'gelu', 'tanh', 'selu').
+        use_layer_norm: Se True, aplica LayerNorm após cada camada (exceto saída final).
     """
 
     def __init__(
@@ -55,37 +59,64 @@ class BeamGNN(nn.Module):
         num_layers: int = 4,
         dropout: float = 0.1,
         activation: str = "relu",
+        use_layer_norm: bool = True,
     ):
         super().__init__()
-        
-        self.activation = _get_activation(activation)
 
+        self.activation = _get_activation(activation)
         self.dropout_rate = dropout
+        self.use_layer_norm = use_layer_norm
 
         # Encoder: features brutas -> espaço latente
-        
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            self.activation,  # <-- USE AQUI
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, hidden_dim),
-            self.activation,  # <-- USE AQUI TAMBÉM
-        )
+        # LayerNorm é aplicado após a última Linear, antes da activation
+        if use_layer_norm:
+            self.encoder = nn.Sequential(
+                nn.Linear(input_dim, hidden_dim),
+                self.activation,
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.LayerNorm(hidden_dim),
+                self.activation,
+            )
+        else:
+            self.encoder = nn.Sequential(
+                nn.Linear(input_dim, hidden_dim),
+                self.activation,
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim, hidden_dim),
+                self.activation,
+            )
 
         # Processor: camadas de message passing
         self.convs = nn.ModuleList()
         for _ in range(num_layers):
             self.convs.append(GCNConv(hidden_dim, hidden_dim))
 
+        # LayerNorm para cada camada de convolução
+        if use_layer_norm:
+            self.conv_norms = nn.ModuleList()
+            for _ in range(num_layers):
+                self.conv_norms.append(nn.LayerNorm(hidden_dim))
+
         self.conv_dropout = nn.Dropout(dropout)
 
         # Decoder: espaço latente -> predição
-        self.decoder = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            self.activation,
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, output_dim),
-        )
+        # LayerNorm na primeira camada, mas NÃO na saída final
+        if use_layer_norm:
+            self.decoder = nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.LayerNorm(hidden_dim),
+                self.activation,
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim, output_dim),
+            )
+        else:
+            self.decoder = nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                self.activation,
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim, output_dim),
+            )
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
         """
@@ -102,11 +133,19 @@ class BeamGNN(nn.Module):
         h = self.encoder(x)
 
         # Processor (message passing com skip connections)
-        for conv in self.convs:
-            h_new = conv(h, edge_index)
-            h_new = self.activation(h_new)
-            h_new = self.conv_dropout(h_new)
-            h = h + h_new  # Skip connection
+        if self.use_layer_norm:
+            for conv, norm in zip(self.convs, self.conv_norms):
+                h_new = conv(h, edge_index)
+                h_new = norm(h_new)
+                h_new = self.activation(h_new)
+                h_new = self.conv_dropout(h_new)
+                h = h + h_new  # Skip connection
+        else:
+            for conv in self.convs:
+                h_new = conv(h, edge_index)
+                h_new = self.activation(h_new)
+                h_new = self.conv_dropout(h_new)
+                h = h + h_new  # Skip connection
 
         # Decoder
         out = self.decoder(h)

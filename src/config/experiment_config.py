@@ -13,7 +13,7 @@ class DataConfig(BaseModel):
     val_split: float = Field(default=0.30, ge=0.0, le=1.0)
     scaler_type: Literal["standard", "minmax", "robust", "none"] = Field(default="minmax")  # <-- ADICIONAR "robust"
     rho_folder: str = Field(
-        default="teste", description="Valor máximo de deslocamento normalizado"
+        default="rho_0.010_E_fixed_102_elements", description="Valor máximo de deslocamento normalizado"
     )
 
 
@@ -31,6 +31,8 @@ class ModelConfig(BaseModel):
     dropout: float = Field(default=0.1, ge=0.0, le=0.9)
     
     activation: str = Field(default="relu", pattern="^(relu|silu|gelu|tanh|selu)$")
+
+    use_layer_norm: bool = Field(default=True)
 
 
 class TrainingConfig(BaseModel):
