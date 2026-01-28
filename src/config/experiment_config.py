@@ -33,6 +33,12 @@ class ModelConfig(BaseModel):
     activation: str = Field(default="relu", pattern="^(relu|silu|gelu|tanh|selu)$")
 
     use_layer_norm: bool = Field(default=True)
+    
+    edge_dim: int = Field(
+        default=1,
+        ge=1,
+        description="Dimensão das edge features. 1 para apenas distância entre nós.",
+    )
 
 
 class TrainingConfig(BaseModel):

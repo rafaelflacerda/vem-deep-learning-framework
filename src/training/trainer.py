@@ -56,6 +56,7 @@ class BeamGNNTrainer:
             dropout=config.model.dropout,
             activation=config.model.activation,
             use_layer_norm=config.model.use_layer_norm,
+            edge_dim=config.model.edge_dim,
         )
         self.model = self.model.to(device)
 
@@ -123,7 +124,7 @@ class BeamGNNTrainer:
 
             if self.use_amp:
                 with torch.amp.autocast('cuda'):
-                    out = self.model(batch.x, batch.edge_index)
+                    out = self.model(batch.x, batch.edge_index, batch.edge_attr)
                     loss = self.criterion(out.squeeze(), batch.y)
 
                 self.scaler.scale(loss).backward()
@@ -134,7 +135,7 @@ class BeamGNNTrainer:
 
             else:
             
-                out = self.model(batch.x, batch.edge_index)
+                out = self.model(batch.x, batch.edge_index, batch.edge_attr)
                 loss = self.criterion(out.squeeze(), batch.y)
             
                 loss.backward()
@@ -174,7 +175,7 @@ class BeamGNNTrainer:
         for batch in val_loader:
             batch = batch.to(self.device, non_blocking=True)
             
-            out = self.model(batch.x, batch.edge_index)
+            out = self.model(batch.x, batch.edge_index, batch.edge_attr)
             loss = self.criterion(out.squeeze(), batch.y)
             
             total_loss += loss.item()
@@ -227,7 +228,7 @@ class BeamGNNTrainer:
                 # Múltiplos forward passes
                 predictions = []
                 for _ in range(self.config.evaluation.mc_samples):
-                    out = self.model(batch.x, batch.edge_index)
+                    out = self.model(batch.x, batch.edge_index, batch.edge_attr)
                     predictions.append(out.squeeze())
                 
                 predictions = torch.stack(predictions)  # (n_samples, n_nodes_batch)
@@ -478,6 +479,8 @@ class BeamGNNTrainer:
                 num_layers=self.config.model.num_layers,
                 dropout=self.config.model.dropout,
                 activation=self.config.model.activation,
+                use_layer_norm=self.config.model.use_layer_norm,  # ADICIONAR (estava faltando!)
+                edge_dim=self.config.model.edge_dim,  # NOVO
             ).to(self.device)
 
             if torch.__version__ >= "2.0.0" and self.device.type == "cuda":
