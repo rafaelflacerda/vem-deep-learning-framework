@@ -9,7 +9,7 @@ beam:
 
 # Configuração do modelo treinado
 model:
-  experiment_dir: "results/experiments/2026-01-27_222543_gnn_beam"   # Caminho ou "latest" para o mais recente
+  experiment_dir: "results/experiments/2026-01-28_013220_gnn_beam"   # Caminho ou "latest" para o mais recente
   mc_samples: 50             # Forward passes para MC Dropout
   use_calibration: false      # Usar fator de calibração se disponível
 

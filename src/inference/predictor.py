@@ -27,6 +27,7 @@ class BeamPredictor:
         model: Modelo GNN carregado.
         feature_scaler: Scaler para normalizar features de entrada.
         target_scaler: Scaler para desnormalizar predições.
+        edge_scaler: Scaler para normalizar edge features.
         sigma_scale: Fator de calibração da incerteza (se disponível).
         device: Device onde o modelo está carregado.
     """
@@ -101,7 +102,8 @@ class BeamPredictor:
             num_layers=self.config.model.num_layers,
             dropout=self.config.model.dropout,
             activation=self.config.model.activation,
-            use_layer_norm=getattr(self.config.model, "use_layer_norm", True)
+            use_layer_norm=getattr(self.config.model, "use_layer_norm", True),
+            edge_dim=getattr(self.config.model, "edge_dim", 1),
         )
 
         checkpoint = torch.load(model_path, weights_only=False, map_location=self.device)
@@ -112,7 +114,7 @@ class BeamPredictor:
         self.model = self.model.to(self.device)
 
     def _load_scalers(self) -> None:
-        """Carrega os scalers de features e targets."""
+        """Carrega os scalers de features, targets e edge features."""
         scalers_path = self.experiment_dir / "scalers.pt"
         if not scalers_path.exists():
             raise FileNotFoundError(f"Scalers não encontrados: {scalers_path}")
@@ -127,6 +129,13 @@ class BeamPredictor:
         # Reconstruir target scaler
         self.target_scaler = get_scaler(scaler_type)
         self.target_scaler.load_state_dict(scalers_data["target_scaler"])
+
+        # Reconstruir edge scaler (se existir)
+        if "edge_scaler" in scalers_data:
+            self.edge_scaler = get_scaler(scaler_type)
+            self.edge_scaler.load_state_dict(scalers_data["edge_scaler"])
+        else:
+            self.edge_scaler = None
 
     def _load_calibration(self) -> None:
         """Carrega o fator de calibração da incerteza, se disponível."""
@@ -146,6 +155,7 @@ class BeamPredictor:
 
         Args:
             graph: Grafo PyTorch Geometric (já com features normalizadas).
+                   Deve conter x, edge_index e edge_attr.
             mc_samples: Número de forward passes para MC Dropout.
             apply_calibration: Se True, aplica o fator sigma_scale à incerteza.
 
@@ -160,7 +170,7 @@ class BeamPredictor:
         predictions = []
         with torch.no_grad():
             for _ in range(mc_samples):
-                out = self.model(graph.x, graph.edge_index)
+                out = self.model(graph.x, graph.edge_index, graph.edge_attr)
                 predictions.append(out.squeeze())
 
         predictions = torch.stack(predictions)  # (mc_samples, n_nodes)
@@ -202,3 +212,7 @@ class BeamPredictor:
     def get_feature_scaler(self):
         """Retorna o feature scaler para uso na construção de grafos."""
         return self.feature_scaler
+
+    def get_edge_scaler(self):
+        """Retorna o edge scaler para uso na construção de grafos."""
+        return self.edge_scaler
