@@ -10,7 +10,9 @@ e salvo para ser aplicado durante a inferência.
 
 Uso:
     # Calibrar usando caminho do experimento
-    python scripts/calibrate_model.py --exp-dir results/experiments/2026-01-20_235324_gnn_beam
+    python scripts/calibrate_model.py --exp-dir results/experiments/2026-01-28_013220_gnn_beam
+    
+    /Users/rafaelflacerda/00-projects/vem-deep-learning-framework/results/experiments/2026-01-28_013220_gnn_beam
     
     # Calibrar o experimento mais recente
     python scripts/calibrate_model.py --latest
