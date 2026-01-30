@@ -13,7 +13,7 @@ class DataConfig(BaseModel):
     val_split: float = Field(default=0.30, ge=0.0, le=1.0)
     scaler_type: Literal["standard", "minmax", "robust", "none"] = Field(default="minmax")  # <-- ADICIONAR "robust"
     rho_folder: str = Field(
-        default="rho_0.010_E_q_fixed", description="Valor máximo de deslocamento normalizado"
+        default="slenderness_method", description="Valor máximo de deslocamento normalizado"
     )
 
 

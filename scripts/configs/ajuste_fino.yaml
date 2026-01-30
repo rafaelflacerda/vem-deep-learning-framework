@@ -21,7 +21,7 @@ parameters:
   
   # Epochs: para fine-tuning, provavelmente precisa de menos
   training.epochs:
-    values: [30, 50, 75, 100]  # Valores menores que sweep from scratch
+    values: [30, 50, 75]  # Valores menores que sweep from scratch
   
   # ============================================================================
   # PARÂMETROS FIXOS
@@ -32,13 +32,13 @@ parameters:
     value: Sobol
   
   data.dataset_size:
-    value: 1000000
+    value: 250000
   
   data.val_split:
     value: 0.3
   
   data.scaler_type:
-    value: minmax
+    values: ["minmax", "standard"]
   
   data.rho_folder:
     value: slenderness_method
@@ -122,19 +122,4 @@ parameters:
   n_folds:
     value: 5
   
-  # ============================================================================
-  # CHECKPOINT PRÉ-TREINADO (FINE-TUNING)
-  # ============================================================================
-  pretrained_checkpoint:
-    value: "results/experiments/2026-01-28_173222_gnn_beam/best_model.pt"
 
-# ============================================================================
-# CONFIGURAÇÃO DO SWEEP
-# ============================================================================
-
-# Early termination
-early_terminate:
-  type: hyperband
-  min_iter: 3
-  eta: 3
-  s: 2

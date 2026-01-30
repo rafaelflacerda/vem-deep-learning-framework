@@ -67,7 +67,7 @@ class BeamGNNTrainer:
             try:
                 self.model = torch.compile(
                     self.model,
-                    mode="default",  # Opções: "default", "reduce-overhead", "max-autotune"
+                    mode="max-autotune-no-cudagraphs",  # Opções: "default", "reduce-overhead", "max-autotune"
                 )
                 logger.info("Modelo compilado com sucesso")
             except Exception as e:
@@ -698,8 +698,18 @@ class BeamGNNTrainer:
         checkpoint = torch.load(checkpoint_path, weights_only=False, map_location=self.device)
         
         # Carregar pesos do modelo
+        state_dict = checkpoint["model_state_dict"]
+        
+        # Remover prefixo _orig_mod. se existir (adicionado por torch.compile)
+        cleaned_state_dict = {}
+        for key, value in state_dict.items():
+            if key.startswith("_orig_mod."):
+                cleaned_state_dict[key[len("_orig_mod."):]] = value
+            else:
+                cleaned_state_dict[key] = value
+        
         try:
-            self.model.load_state_dict(checkpoint["model_state_dict"])
+            self.model.load_state_dict(cleaned_state_dict)
             logger.info("✓ Pesos do modelo carregados com sucesso!")
         except RuntimeError as e:
             logger.error("Erro ao carregar pesos do modelo: {}", e)

@@ -404,19 +404,17 @@ def main():
             train_dataset,
             batch_size=config.training.batch_size,
             shuffle=True,
-            num_workers = 16,
+            num_workers = 4,
             pin_memory = True,
-            persistent_workers = True,
-            prefetch_factor = 6,
+            persistent_workers = False,
         )
         val_loader = DataLoader(
             val_dataset,
             batch_size=config.training.batch_size,
             shuffle=False,
-            num_workers = 16,
+            num_workers = 4,
             pin_memory = True,
-            persistent_workers = True,
-            prefetch_factor = 6,
+            persistent_workers = False,
         )
         
         # Treinar
