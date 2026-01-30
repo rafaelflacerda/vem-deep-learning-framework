@@ -12,7 +12,7 @@ workspace/vem-deep-learning-framework/results/experiments/2026-01-27_222543_gnn_
 
 Uso:
     # Calibrar usando caminho do experimento
-    python scripts/calibrate_model.py --exp-dir results/experiments/2026-01-27_222543_gnn_beam
+    python scripts/calibrate_model.py --exp-dir results/experiments/2026-01-28_152012_gnn_beam
     
     # Calibrar o experimento mais recente
     python scripts/calibrate_model.py --latest

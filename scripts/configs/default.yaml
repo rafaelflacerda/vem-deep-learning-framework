@@ -35,7 +35,7 @@ data:
 
   # Pasta contendo o dataset (correspondente ao máximo deslocamento normalizado)
   # Exemplo: "rho_0.010" para rho_max = 0.010
-  rho_folder: "rho_0.010_E_q_fixed"
+  rho_folder: "slenderness_method"
 
 # =============================================================================
 # CONFIGURAÇÕES DA ARQUITETURA DO MODELO GNN

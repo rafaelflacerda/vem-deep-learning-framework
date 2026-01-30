@@ -21,7 +21,7 @@ class ModelConfig(BaseModel):
     """Configurações da rede neural GNN."""
 
     input_dim: int = Field(
-        default=10,
+        default=9,
         ge=1,
         description="Número de features de entrada. Deve corresponder ao dataset.",
     )
@@ -98,6 +98,11 @@ class ExperimentConfig(BaseModel):
 
     cv_mode: Literal["fixed", "kfold"] = Field(default="fixed")
     n_folds: int = Field(default=5, ge=2)
+
+    pretrained_checkpoint: str | None = Field(
+        default=None,
+        description="Caminho para checkpoint pré-treinado. None = treinar do zero."
+    )
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "ExperimentConfig":

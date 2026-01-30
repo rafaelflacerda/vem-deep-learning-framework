@@ -22,6 +22,12 @@ from src.inference.refinement import (
     compute_interval_uncertainty,
     compute_refinement_indicator,
     select_intervals_to_refine,
+    # Novas funções ZZ
+    compute_moment_from_displacement,
+    recover_moment_zz,
+    compute_zz_error_indicator,
+    compute_zz_global_error,
+    select_intervals_zz,
 )
 from src.inference.stopping import (
     CompositeCriterion,
@@ -47,6 +53,11 @@ __all__ = [
     "compute_interval_uncertainty",
     "compute_refinement_indicator",
     "select_intervals_to_refine",
+    "compute_moment_from_displacement",
+    "recover_moment_zz",
+    "compute_zz_error_indicator",
+    "compute_zz_global_error",
+    "select_intervals_zz",
     # stopping
     "CompositeCriterion",
     "MaxIterationsCriterion",

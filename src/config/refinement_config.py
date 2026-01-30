@@ -17,7 +17,7 @@ class BeamConfig(BaseModel):
 
     I: float = Field(..., gt=0, description="Momento de inércia [m^4]")
     L: float = Field(..., gt=0, description="Comprimento [m]")
-    q: float = Field(..., gt=0, description="Carregamento distribuído [N/m]")
+    q: float = Field(default=5000, gt=0, description="Carregamento distribuído [N/m]")
     E: float = Field(default=200.0e9, gt=0, description="Módulo de elasticidade [Pa]")
 
 
@@ -59,6 +59,10 @@ class RefinementConfig(BaseModel):
         default="midpoint",
         description="Estratégia para posicionar novos nós: 'midpoint' ou 'max_indicator'",
     )
+
+    zz_threshold: float = Field(default=1e-6, description="Threshold de erro global ZZ para parada")
+    zz_strategy: str = Field(default="threshold", description="Estratégia: threshold, top_n, fraction")
+    zz_threshold_factor: float = Field(default=1.5, description="Fator para threshold adaptativo")
 
 
 class VisualizationConfig(BaseModel):

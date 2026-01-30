@@ -58,6 +58,9 @@ class BeamGNNTrainer:
             use_layer_norm=config.model.use_layer_norm,
         )
         self.model = self.model.to(device)
+        
+        if config.pretrained_checkpoint is not None:
+            self._load_pretrained_checkpoint(config.pretrained_checkpoint)
 
         if torch.__version__ >= "2.0.0" and self.device.type == "cuda":
             logger.info("Compilando modelo com torch.compile()...")
@@ -122,7 +125,7 @@ class BeamGNNTrainer:
             self.optimizer.zero_grad(set_to_none=True)
 
             if self.use_amp:
-                with torch.amp.autocast('cuda'):
+                with torch.amp.autocast('cuda', dtype=torch.bfloat16):
                     out = self.model(batch.x, batch.edge_index)
                     loss = self.criterion(out.squeeze(), batch.y)
 
@@ -485,7 +488,8 @@ class BeamGNNTrainer:
                 try:
                     self.model = torch.compile(
                         self.model,
-                        mode="default",  # Opções: "default", "reduce-overhead", "max-autotune"
+                        mode="default", # Opções: "default", "reduce-overhead", "max-autotune"
+                        fullgraph=True,
                     )
                     logger.info("Modelo compilado com sucesso")
                 except Exception as e:
@@ -662,6 +666,87 @@ class BeamGNNTrainer:
             )
         else:
             raise ValueError(f"Scheduler desconhecido: {scheduler_type}")
+
+    def _load_pretrained_checkpoint(self, checkpoint_path: str) -> None:
+        """
+        Carrega checkpoint pré-treinado para fine-tuning.
+        
+        Apenas os pesos do modelo são carregados. O optimizer e scheduler
+        são inicializados do zero para permitir diferentes hiperparâmetros.
+        
+        Args:
+            checkpoint_path: Caminho para o arquivo .pt do checkpoint.
+            
+        Raises:
+            FileNotFoundError: Se o checkpoint não existir.
+            RuntimeError: Se houver incompatibilidade de arquitetura.
+        """
+        from pathlib import Path
+        
+        checkpoint_path = Path(checkpoint_path)
+        
+        if not checkpoint_path.exists():
+            logger.error("Checkpoint não encontrado: {}", checkpoint_path)
+            raise FileNotFoundError(f"Checkpoint não encontrado: {checkpoint_path}")
+        
+        logger.info("=" * 70)
+        logger.info("CARREGANDO CHECKPOINT PRÉ-TREINADO PARA FINE-TUNING")
+        logger.info("=" * 70)
+        logger.info("Caminho: {}", checkpoint_path)
+        
+        # Carregar checkpoint
+        checkpoint = torch.load(checkpoint_path, weights_only=False, map_location=self.device)
+        
+        # Carregar pesos do modelo
+        try:
+            self.model.load_state_dict(checkpoint["model_state_dict"])
+            logger.info("✓ Pesos do modelo carregados com sucesso!")
+        except RuntimeError as e:
+            logger.error("Erro ao carregar pesos do modelo: {}", e)
+            logger.error("Verifique se a arquitetura do modelo é compatível com o checkpoint.")
+            raise
+        
+        # Log de informações do checkpoint original
+        logger.info("Informações do checkpoint original:")
+        logger.info("  Época: {}", checkpoint.get("epoch", "N/A"))
+        logger.info("  Val Loss: {:.6f}", checkpoint.get("val_loss", float('inf')))
+        if "val_r2" in checkpoint:
+            logger.info("  Val R²: {:.6f}", checkpoint["val_r2"])
+        
+        # Verificar compatibilidade de arquitetura
+        if "config" in checkpoint:
+            loaded_config = checkpoint["config"]
+            
+            # Extrair configurações do modelo do checkpoint
+            if isinstance(loaded_config, dict) and "model" in loaded_config:
+                loaded_model_config = loaded_config["model"]
+            else:
+                loaded_model_config = loaded_config
+            
+            logger.info("Verificando compatibilidade de arquitetura:")
+            arch_keys = ["hidden_dim", "num_layers", "dropout"]
+            
+            all_compatible = True
+            for key in arch_keys:
+                if key in loaded_model_config:
+                    loaded_value = loaded_model_config[key]
+                    current_value = getattr(self.config.model, key)
+                    
+                    if loaded_value != current_value:
+                        logger.warning("  ⚠ {}: checkpoint={}, atual={}", 
+                                     key, loaded_value, current_value)
+                        all_compatible = False
+                    else:
+                        logger.info("  ✓ {}: {}", key, current_value)
+            
+            if all_compatible:
+                logger.info("✓ Arquitetura totalmente compatível!")
+            else:
+                logger.warning("⚠ Arquitetura diverge do checkpoint original!")
+                logger.warning("   Prosseguindo, mas resultados podem ser imprevisíveis.")
+        
+        logger.info("=" * 70)
+        logger.info("")
     
     @staticmethod
     def _split_dataset(

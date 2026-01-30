@@ -1,0 +1,140 @@
+program: scripts/run_for_sweep.py
+method: bayes
+metric:
+  name: val_loss
+  goal: minimize
+
+parameters:
+  # ============================================================================
+  # PARÂMETROS QUE VAMOS OTIMIZAR
+  # ============================================================================
+  
+  # Learning rate: para fine-tuning, usar range MENOR que treino from scratch
+  training.learning_rate:
+    distribution: log_uniform_values
+    min: 0.0001    # Mais baixo para fine-tuning
+    max: 0.003     # Máximo igual ao que funcionou em 25k
+  
+  # Batch size: com 1M samples, usar batches maiores
+  training.batch_size:
+    values: [512, 1024, 2048]
+  
+  # Epochs: para fine-tuning, provavelmente precisa de menos
+  training.epochs:
+    values: [30, 50, 75, 100]  # Valores menores que sweep from scratch
+  
+  # ============================================================================
+  # PARÂMETROS FIXOS
+  # ============================================================================
+  
+  # Data
+  data.sampling_method:
+    value: Sobol
+  
+  data.dataset_size:
+    value: 1000000
+  
+  data.val_split:
+    value: 0.3
+  
+  data.scaler_type:
+    value: minmax
+  
+  data.rho_folder:
+    value: slenderness_method
+  
+  # Model (EXATAMENTE a mesma arquitetura do checkpoint)
+  model.input_dim:
+    value: 9
+  
+  model.hidden_dim:
+    value: 96
+  
+  model.output_dim:
+    value: 1
+  
+  model.num_layers:
+    value: 6
+  
+  model.dropout:
+    value: 0.06149148663460763
+  
+  model.activation:
+    value: silu
+  
+  model.use_layer_norm:
+    value: true
+  
+  # Training (outros hiperparâmetros)
+  training.weight_decay:
+    value: 0.00022684364762833443
+  
+  training.loss_type:
+    value: huber
+  
+  training.huber_delta:
+    value: 0.9484272154329952
+  
+  training.optimizer_type:
+    value: adamw
+  
+  training.scheduler_type:
+    value: reduce_lr_on_plateau
+  
+  training.scheduler_patience:
+    value: 20
+  
+  training.scheduler_factor:
+    value: 0.5
+  
+  training.scheduler_t_max:
+    value: 100  # Ignorado quando usa ReduceLROnPlateau
+  
+  training.scheduler_step_size:
+    value: 10   # Ignorado quando usa ReduceLROnPlateau
+  
+  training.adamw_beta1:
+    value: 0.9
+  
+  training.adamw_beta2:
+    value: 0.999
+  
+  training.adamw_epsilon:
+    value: 1.0e-08
+  
+  training.sgd_momentum:
+    value: 0.9
+  
+  training.sgd_nesterov:
+    value: true
+  
+  # Evaluation
+  evaluation.mc_samples:
+    value: 50
+  
+  evaluation.n_profile_samples:
+    value: 6
+  
+  # CV
+  cv_mode:
+    value: fixed
+  
+  n_folds:
+    value: 5
+  
+  # ============================================================================
+  # CHECKPOINT PRÉ-TREINADO (FINE-TUNING)
+  # ============================================================================
+  pretrained_checkpoint:
+    value: "results/experiments/2026-01-28_173222_gnn_beam/best_model.pt"
+
+# ============================================================================
+# CONFIGURAÇÃO DO SWEEP
+# ============================================================================
+
+# Early termination
+early_terminate:
+  type: hyperband
+  min_iter: 3
+  eta: 3
+  s: 2
