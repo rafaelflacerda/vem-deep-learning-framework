@@ -63,6 +63,25 @@ class TrainingConfig(BaseModel):
     sgd_momentum: float = Field(default=0.9, ge=0.0, le=1.0)
     sgd_nesterov: bool = Field(default=True)
 
+    # Early stopping
+    early_stopping_patience: int = Field(
+        default=25, 
+        ge=0, 
+        description="Epochs sem melhora para parar. 0 = desativado."
+    )
+    early_stopping_min_delta: float = Field(
+        default=1e-5, 
+        ge=0.0, 
+        description="Melhora mínima para considerar como progresso."
+    )
+
+    # DataLoader
+    num_workers: int = Field(default=0, ge=0)
+    pin_memory: bool = Field(default=False)
+    persistent_workers: bool = Field(default=False)
+    prefetch_factor: int | None = Field(default=None, ge=1)
+  
+
 class EvaluationConfig(BaseModel):
     """Configurações de avaliação e visualização."""
 

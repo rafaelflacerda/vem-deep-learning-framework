@@ -67,7 +67,7 @@ class BeamGNNTrainer:
             try:
                 self.model = torch.compile(
                     self.model,
-                    mode="max-autotune-no-cudagraphs",  # Opções: "default", "reduce-overhead", "max-autotune"
+                    mode="default",  # Opções: "default", "reduce-overhead", "max-autotune"
                 )
                 logger.info("Modelo compilado com sucesso")
             except Exception as e:
@@ -361,6 +361,11 @@ class BeamGNNTrainer:
         val_r2s = []
         best_val_loss = float("inf")
         best_epoch = 0
+
+        # Early stopping
+        patience = self.config.training.early_stopping_patience
+        min_delta = self.config.training.early_stopping_min_delta
+        epochs_without_improvement = 0
         
         for epoch in range(1, self.config.training.epochs + 1):
             # Treinar
@@ -380,10 +385,11 @@ class BeamGNNTrainer:
             
             self.scheduler.step(val_loss)
             
-            # Salvar melhor modelo
-            if val_loss < best_val_loss:
+            # Verificar se houve melhora
+            if val_loss < best_val_loss - min_delta:
                 best_val_loss = val_loss
                 best_epoch = epoch
+                epochs_without_improvement = 0
                 torch.save(
                     {
                         "epoch": epoch,
@@ -397,6 +403,8 @@ class BeamGNNTrainer:
                     },
                     exp_dir / "best_model.pt",
                 )
+            else:
+                epochs_without_improvement += 1
                 
             # Logar métricas no W&B a cada época
             wandb.log({
@@ -418,6 +426,15 @@ class BeamGNNTrainer:
                     train_r2,
                     val_r2,
                 )
+            
+            # Early stopping check
+            if patience > 0 and epochs_without_improvement >= patience:
+                logger.info(
+                    "Early stopping na época {} ({} epochs sem melhora)",
+                    epoch,
+                    patience,
+                )
+                break
         
         logger.info("Treinamento concluído!")
         logger.info("Melhor época: {} com Val Loss: {:.6f}", best_epoch, best_val_loss)
@@ -434,7 +451,6 @@ class BeamGNNTrainer:
             "best_epoch": best_epoch,
             "best_val_loss": best_val_loss,
         }
-
     
     def run_kfold(
         self,
@@ -522,17 +538,19 @@ class BeamGNNTrainer:
                 train_dataset,
                 batch_size=self.config.training.batch_size,
                 shuffle=True,
-                num_workers=4,
+                num_workers=8,
                 pin_memory=True,
                 persistent_workers=True,
+                prefetch_factor=4,
             )
             val_loader = DataLoader(
                 val_dataset,
                 batch_size=self.config.training.batch_size,
                 shuffle=False,
-                num_workers=4,
+                num_workers=8,
                 pin_memory=True,
                 persistent_workers=True,
+                prefetch_factor=4,
             )
             
             # Treinar este fold

@@ -93,6 +93,14 @@ training:
   # Define o ponto onde Huber muda de quadrático para linear
   huber_delta: 1.0
 
+  num_workers: 8
+  
+  pin_memory: true
+  
+  persistent_workers: true
+  
+  prefetch_factor: 4
+
 # =============================================================================
 # CONFIGURAÇÕES DE AVALIAÇÃO E VISUALIZAÇÃO
 # =============================================================================

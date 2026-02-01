@@ -1,0 +1,160 @@
+program: scripts/run_for_sweep.py
+method: bayes
+metric:
+  name: val_loss
+  goal: minimize
+
+parameters:
+
+  # ============================================================================
+  # PARAMETRO DA VERSAO!!!!!
+  # IMPORTANTE
+  # ============================================================================
+
+  blocked:
+    value: False
+
+  # ============================================================================
+  # SE FOR TRUE, NAO UTILIZAR ESSE YAML, VERSÃO ANTIGA. PROCURE VERSAO MAIS ANTIGA
+  # OU, SE TIVER CERTEZA, ALTERE O VALOR DE BLOCKED VALUE PARA FALSE
+  # ============================================================================
+
+
+
+  # ============================================================================
+  # PARÂMETROS QUE VAMOS OTIMIZAR
+  # ============================================================================
+  
+  # Learning rate: para fine-tuning, usar range MENOR que treino from scratch
+  training.learning_rate:
+    value: 0.0014218773129414234
+
+    
+  data.scaler_type:
+    value: "minmax"
+
+    # Batch size: com 1M samples, usar batches maiores
+  training.batch_size:
+    value: 1024
+
+
+
+
+  # ============================================================================
+  # PARÂMETROS FIXOS
+  # ============================================================================
+
+  model.num_layers:
+    value: 8  # Máximo igual ao que funcionou em 25k
+    
+  # Epochs: para fine-tuning, provavelmente precisa de menos
+  training.epochs:
+    value: 75  # Valores menores que sweep from scratch
+  
+  # Data
+  data.sampling_method:
+    value: Sobol
+  
+  data.dataset_size:
+    value: 100000
+  
+  data.val_split:
+    value: 0.3
+  
+  data.rho_folder:
+    value: slenderness_method
+  
+  # Model (EXATAMENTE a mesma arquitetura do checkpoint)
+  model.input_dim:
+    value: 9
+  
+  model.hidden_dim:
+    value: 96
+  
+  model.output_dim:
+    value: 1
+  
+  model.dropout:
+    value: 0.06149148663460763
+  
+  model.activation:
+    value: silu
+  
+  model.use_layer_norm:
+    value: true
+  
+  # Training (outros hiperparâmetros)
+  training.weight_decay:
+    value: 0.00022684364762833443
+  
+  training.loss_type:
+    value: huber
+  
+  training.huber_delta:
+    value: 0.9484272154329952
+  
+  training.optimizer_type:
+    value: adamw
+  
+  training.scheduler_type:
+    value: reduce_lr_on_plateau
+  
+  training.scheduler_patience:
+    value: 20
+  
+  training.scheduler_factor:
+    value: 0.5
+  
+  training.scheduler_t_max:
+    value: 100  # Ignorado quando usa ReduceLROnPlateau
+  
+  training.scheduler_step_size:
+    value: 10   # Ignorado quando usa ReduceLROnPlateau
+  
+  training.adamw_beta1:
+    value: 0.9
+  
+  training.adamw_beta2:
+    value: 0.999
+  
+  training.adamw_epsilon:
+    value: 1.0e-08
+  
+  training.sgd_momentum:
+    value: 0.9
+  
+  training.sgd_nesterov:
+    value: true
+  
+  # Evaluation
+  evaluation.mc_samples:
+    value: 50
+  
+  evaluation.n_profile_samples:
+    value: 6
+  
+  # CV
+  cv_mode:
+    value: fixed
+  
+  n_folds:
+    value: 5
+
+  # ============================================================================
+  # PARÂMETROS FIXOS
+  # ============================================================================
+
+  # DataLoader
+  training.num_workers:
+    value: 8
+  
+  training.pin_memory:
+    value: true
+  
+  training.persistent_workers:
+    value: true
+  
+  training.prefetch_factor:
+    value: 4
+  
+

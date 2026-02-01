@@ -64,6 +64,7 @@ class BeamGraphDataset(Dataset):
 
         # Aplicar scaling e armazenar grafos escalados
         self.data_list_scaled = self._apply_scaling()
+        del self.data_list
 
     def _fit_scalers(self) -> None:
         """

@@ -208,7 +208,7 @@ def process_single_part(part_num: int, n_workers: int, params_dict: dict) -> Pat
         results = pool.imap_unordered(
             process_single_case, 
             args_list,
-            chunksize=1000
+            chunksize=50
         )
         
         for i, result in enumerate(results, 1):
