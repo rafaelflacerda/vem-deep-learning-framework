@@ -33,38 +33,29 @@ class BeamGraphDataset(Dataset):
     def __init__(
         self,
         pt_path: str,
-        feature_scaler: BaseScaler | str = "standard",
-        target_scaler: BaseScaler | str = "standard",
-        fit_scalers: bool = True,
     ):
         super().__init__()
-
-        # Carregar dados
+    
         data = torch.load(pt_path, weights_only=False)
-        self.data_list: list[Data] = data["data_list"]
+    
+        # Verificar se é formato de cache
+        if "data_list_scaled" not in data:
+            raise ValueError(
+                f"Arquivo '{pt_path}' não é um cache pré-processado. "
+                f"Execute primeiro: python scripts/prepare_scaled_dataset.py --dataset <arquivo_original> --scaler <tipo>"
+            )
+    
+        self.data_list_scaled = data["data_list_scaled"]
         self.metadata = data["metadata"]
-
-        self.n_samples = len(self.data_list)
-        self.n_features = self.data_list[0].x.shape[1]  # todas têm mesma quantidade de features
-
-        # Configurar scalers
-        if isinstance(feature_scaler, str):
-            self.feature_scaler = get_scaler(feature_scaler)
-        else:
-            self.feature_scaler = feature_scaler
-
-        if isinstance(target_scaler, str):
-            self.target_scaler = get_scaler(target_scaler)
-        else:
-            self.target_scaler = target_scaler
-
-        # Fitar scalers se necessário
-        if fit_scalers:
-            self._fit_scalers()
-
-        # Aplicar scaling e armazenar grafos escalados
-        self.data_list_scaled = self._apply_scaling()
-        del self.data_list
+        self.n_samples = len(self.data_list_scaled)
+        self.n_features = self.data_list_scaled[0].x.shape[1]
+    
+        # Restaurar scalers
+        scaler_type = data["scaler_type"]
+        self.feature_scaler = get_scaler(scaler_type)
+        self.target_scaler = get_scaler(scaler_type)
+        self.feature_scaler.load_state_dict(data["feature_scaler_state"])
+        self.target_scaler.load_state_dict(data["target_scaler_state"])
 
     def _fit_scalers(self) -> None:
         """

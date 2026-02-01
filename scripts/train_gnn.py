@@ -347,19 +347,14 @@ def main():
         paths.data.processed
         / config.data.sampling_method
         / config.data.rho_folder
-        / f"dataset_{config.data.dataset_size}.pt"
+        / f"dataset_{config.data.dataset_size}_scaled_{config.data.scaler_type}.pt"
     )
     
     if not dataset_path.exists():
         logger.error("Dataset não encontrado: {}", dataset_path)
         raise FileNotFoundError(f"Dataset não encontrado: {dataset_path}")
     
-    dataset = BeamGraphDataset(
-        pt_path=str(dataset_path),
-        feature_scaler=config.data.scaler_type,
-        target_scaler=config.data.scaler_type,
-        fit_scalers=True,
-    )
+    dataset = BeamGraphDataset(pt_path=str(dataset_path))
     
     logger.info("Dataset carregado: {} amostras, {} features",
                 dataset.n_samples, dataset.n_features)

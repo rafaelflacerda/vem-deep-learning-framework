@@ -15,7 +15,7 @@ from torch_geometric.loader import DataLoader
 
 from src.modeling.gnn import BeamGNN
 from src.config.experiment_config import ExperimentConfig
-from src.training.metrics import compute_r2, compute_metrics
+from src.training.metrics import compute_metrics
 
 import wandb
 
@@ -336,9 +336,6 @@ class BeamGNNTrainer:
         """
         Executa treinamento com split fixo (não k-fold).
         
-        Coordena o loop de épocas para um split simples treino/validação.
-        Retorna histórico completo de losses e R² para análise posterior.
-        
         Args:
             train_loader: DataLoader de treinamento.
             val_loader: DataLoader de validação.
@@ -348,8 +345,6 @@ class BeamGNNTrainer:
             Dicionário contendo:
                 - 'train_losses': lista de losses de treinamento por época
                 - 'val_losses': lista de losses de validação por época
-                - 'train_r2s': lista de R² de treinamento por época
-                - 'val_r2s': lista de R² de validação por época
                 - 'best_epoch': melhor época encontrada
                 - 'best_val_loss': melhor validation loss encontrada
         """
@@ -357,11 +352,9 @@ class BeamGNNTrainer:
         
         train_losses = []
         val_losses = []
-        train_r2s = []
-        val_r2s = []
         best_val_loss = float("inf")
         best_epoch = 0
-
+    
         # Early stopping
         patience = self.config.training.early_stopping_patience
         min_delta = self.config.training.early_stopping_min_delta
@@ -372,16 +365,9 @@ class BeamGNNTrainer:
             train_loss = self.train_epoch(train_loader)
             train_losses.append(train_loss)
             
-            # Avaliar no treino
-            _, train_preds, train_targets = self.evaluate(train_loader)
-            train_r2 = compute_r2(train_targets, train_preds)
-            train_r2s.append(train_r2)
-            
             # Avaliar na validação
-            val_loss, val_preds, val_targets = self.evaluate(val_loader)
+            val_loss, _, _ = self.evaluate(val_loader)
             val_losses.append(val_loss)
-            val_r2 = compute_r2(val_targets, val_preds)
-            val_r2s.append(val_r2)
             
             self.scheduler.step(val_loss)
             
@@ -397,8 +383,6 @@ class BeamGNNTrainer:
                         "optimizer_state_dict": self.optimizer.state_dict(),
                         "train_loss": train_loss,
                         "val_loss": val_loss,
-                        "train_r2": train_r2,
-                        "val_r2": val_r2,
                         "config": self.config.model_dump(),
                     },
                     exp_dir / "best_model.pt",
@@ -411,20 +395,15 @@ class BeamGNNTrainer:
                 "epoch": epoch,
                 "train_loss": train_loss,
                 "val_loss": val_loss,
-                "val_mse": val_loss,
-                "train_r2": train_r2,
-                "val_r2": val_r2,
             })
             
             if epoch % 10 == 0 or epoch == self.config.training.epochs:
                 logger.info(
-                    "Época {}/{} | Train Loss: {:.6f} | Val Loss: {:.6f} | Train R²: {:.4f} | Val R²: {:.4f}",
+                    "Época {}/{} | Train Loss: {:.6f} | Val Loss: {:.6f}",
                     epoch,
                     self.config.training.epochs,
                     train_loss,
                     val_loss,
-                    train_r2,
-                    val_r2,
                 )
             
             # Early stopping check
@@ -446,8 +425,6 @@ class BeamGNNTrainer:
         return {
             "train_losses": train_losses,
             "val_losses": val_losses,
-            "train_r2s": train_r2s,
-            "val_r2s": val_r2s,
             "best_epoch": best_epoch,
             "best_val_loss": best_val_loss,
         }

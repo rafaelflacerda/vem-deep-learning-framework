@@ -89,7 +89,7 @@ def split_dataset_stratified(
     indices_by_n_elements: dict[int, list[int]] = defaultdict(list)
     
     for idx in range(len(dataset)):
-        n_elements = dataset.data_list[idx].n_elements
+        n_elements = dataset.data_list_scaled[idx].n_elements
         indices_by_n_elements[n_elements].append(idx)
     
     # Fazer split dentro de cada grupo
