@@ -27,7 +27,7 @@ import sys
 import argparse
 from pathlib import Path
 
-import numpy as np
+#import numpy as np
 import torch
 from loguru import logger
 
@@ -43,16 +43,21 @@ from src.data.dataset import BeamGraphDataset
 from src.paths import create_experiment_dir, ensure_dir, paths
 from src.training.trainer import BeamGNNTrainer
 from src.training.validation import split_dataset, split_dataset_stratified
-from src.training.metrics import compute_metrics
+#from src.training.metrics import compute_metrics
 from src.utils.logger import configure_logger
 from src.utils.visualization import (
-    plot_beam_cases_comparison_variable,
-    plot_beam_cases_comparison,
     plot_loss_curves,
-    plot_r2_curves,
     save_figure,
     set_style,
 )
+# from src.utils.visualization import (
+#     plot_beam_cases_comparison_variable,
+#     plot_beam_cases_comparison,
+#     plot_loss_curves,
+#     plot_r2_curves,
+#     save_figure,
+#     set_style,
+# )
 from torch_geometric.loader import DataLoader
 
 # =============================================================================
@@ -365,8 +370,8 @@ def main():
     logger.info("")
     
     # Extrair posições dos nós para gráficos finais
-    feature_names = dataset.metadata["feature_names"]["all"]
-    x_idx = feature_names.index("x")
+    # feature_names = dataset.metadata["feature_names"]["all"]
+    # x_idx = feature_names.index("x")
     #positions = sample_data["features"][0, :, x_idx].numpy()
     
     # =========================================================================
@@ -439,8 +444,8 @@ def main():
         
         train_losses = training_result["train_losses"]
         val_losses = training_result["val_losses"]
-        train_r2s = training_result["train_r2s"]
-        val_r2s = training_result["val_r2s"]
+        #train_r2s = training_result["train_r2s"]
+        #val_r2s = training_result["val_r2s"]
         best_epoch = training_result["best_epoch"]
         
     elif config.cv_mode == "kfold":
@@ -454,8 +459,8 @@ def main():
         best_fold_idx = kfold_result["best_fold_idx"]
         train_losses = kfold_result["best_train_losses"]
         val_losses = kfold_result["best_val_losses"]
-        train_r2s = []
-        val_r2s = []
+        #train_r2s = []
+        #val_r2s = []
         best_epoch = kfold_result["best_fold_results"]["best_epoch"]
         
         # Para avaliação final, usar o split do melhor fold
@@ -481,35 +486,35 @@ def main():
     # STEP 5: AVALIAÇÃO FINAL COM INCERTEZA
     # =========================================================================
     
-    logger.info("Executando avaliação final com MC Dropout...")
-    logger.info("Estimando incerteza com {} forward passes", config.evaluation.mc_samples)
+    # logger.info("Executando avaliação final com MC Dropout...")
+    # logger.info("Estimando incerteza com {} forward passes", config.evaluation.mc_samples)
     
-    y_mean_scaled, y_std_scaled, y_true_scaled = trainer.predict_with_uncertainty(val_loader)
+    # y_mean_scaled, y_std_scaled, y_true_scaled = trainer.predict_with_uncertainty(val_loader)
     
-    # Converter para valores físicos (desfazer normalização)
-    y_mean = dataset.inverse_transform_targets(y_mean_scaled)
-    y_true = dataset.inverse_transform_targets(y_true_scaled)
+    # # Converter para valores físicos (desfazer normalização)
+    # y_mean = dataset.inverse_transform_targets(y_mean_scaled)
+    # y_true = dataset.inverse_transform_targets(y_true_scaled)
     
-    # Escalar desvio padrão
-    if hasattr(dataset.target_scaler, "std") and dataset.target_scaler.std is not None:
-        scale_factor = dataset.target_scaler.std.item() + 1e-8
-    elif hasattr(dataset.target_scaler, "max") and dataset.target_scaler.max is not None:
-        scale_factor = (dataset.target_scaler.max.item() - dataset.target_scaler.min.item()) + 1e-8
-    else:
-        scale_factor = 1.0
+    # # Escalar desvio padrão
+    # if hasattr(dataset.target_scaler, "std") and dataset.target_scaler.std is not None:
+    #     scale_factor = dataset.target_scaler.std.item() + 1e-8
+    # elif hasattr(dataset.target_scaler, "max") and dataset.target_scaler.max is not None:
+    #     scale_factor = (dataset.target_scaler.max.item() - dataset.target_scaler.min.item()) + 1e-8
+    # else:
+    #     scale_factor = 1.0
     
-    y_std = y_std_scaled * scale_factor
+    # y_std = y_std_scaled * scale_factor
     
-    # Calcular métricas finais
-    metrics = compute_metrics(y_true, y_mean)
+    # # Calcular métricas finais
+    # metrics = compute_metrics(y_true, y_mean)
     
-    logger.info("")
-    logger.info("Métricas finais (valores físicos):")
-    logger.info("  MSE:  {:.6e}", metrics["mse"])
-    logger.info("  RMSE: {:.6e}", metrics["rmse"])
-    logger.info("  MAE:  {:.6e}", metrics["mae"])
-    logger.info("  R²:   {:.6f}", metrics["r2"])
-    logger.info("")
+    # logger.info("")
+    # logger.info("Métricas finais (valores físicos):")
+    # logger.info("  MSE:  {:.6e}", metrics["mse"])
+    # logger.info("  RMSE: {:.6e}", metrics["rmse"])
+    # logger.info("  MAE:  {:.6e}", metrics["mae"])
+    # #logger.info("  R²:   {:.6f}", metrics["r2"])
+    # logger.info("")
     
     # =========================================================================
     # STEP 6: PREPARAR DADOS PARA GRÁFICOS
@@ -647,81 +652,91 @@ def main():
 
     logger.info("Salvando artefatos finais...")
 
-    # Salvar scalers
-    torch.save(
-        {
-            "feature_scaler": dataset.feature_scaler.state_dict(),
-            "target_scaler": dataset.target_scaler.state_dict(),
-            "scaler_type": config.data.scaler_type,
-        },
-        exp_dir / "scalers.pt",
-    )
-    logger.info("Scalers salvos em: scalers.pt")
-    
-    # Finalizar W&B com métricas finais
-    wandb.log({
-        "final_val_mse": metrics["mse"],
-        "final_rmse": metrics["rmse"],
-        "final_mae": metrics["mae"],
-        "final_r2": metrics["r2"],
-        "best_epoch": best_epoch,
-    })
+    wandb.log({"best_epoch": best_epoch})
     wandb.finish()
     logger.info("W&B finalizado")
-
-    # Logging estruturado dos resultados finais (para arquivo de log)
+    
+    logger.info("")
     logger.info("=" * 70)
-    logger.info("RESULTADOS FINAIS DO EXPERIMENTO")
+    logger.info("TREINAMENTO CONCLUÍDO COM SUCESSO!")
     logger.info("=" * 70)
+    logger.info("Diretório: {}", exp_dir)
 
-    logger.info("MÉTRICAS DE VALIDAÇÃO:")
-    logger.info("  MSE:  {:.6e}", metrics["mse"])
-    logger.info("  RMSE: {:.6e}", metrics["rmse"])
-    logger.info("  MAE:  {:.6e}", metrics["mae"])
-    logger.info("  R²:   {:.6f}", metrics["r2"])
+    # Salvar scalers
+    # torch.save(
+    #     {
+    #         "feature_scaler": dataset.feature_scaler.state_dict(),
+    #         "target_scaler": dataset.target_scaler.state_dict(),
+    #         "scaler_type": config.data.scaler_type,
+    #     },
+    #     exp_dir / "scalers.pt",
+    # )
+    # logger.info("Scalers salvos em: scalers.pt")
+    
+    # Finalizar W&B com métricas finais
+    # wandb.log({
+    #     "final_val_mse": metrics["mse"],
+    #     "final_rmse": metrics["rmse"],
+    #     "final_mae": metrics["mae"],
+    #     #"final_r2": metrics["r2"],
+    #     "best_epoch": best_epoch,
+    # })
+    # wandb.finish()
+    # logger.info("W&B finalizado")
 
-    logger.info("CONFIGURAÇÃO DE TREINAMENTO USADA:")
-    logger.info("  Dataset: {} amostras", config.data.dataset_size)
-    logger.info("  Modelo: {} hidden dim, {} layers", config.model.hidden_dim, config.model.num_layers)
-    logger.info("  Treinamento: {} epochs (melhor em época {})", config.training.epochs, best_epoch)
-    logger.info("  Learning rate: {:.2e}", config.training.learning_rate)
+    # # Logging estruturado dos resultados finais (para arquivo de log)
+    # logger.info("=" * 70)
+    # logger.info("RESULTADOS FINAIS DO EXPERIMENTO")
+    # logger.info("=" * 70)
 
-    logger.info("VALIDAÇÃO:")
-    logger.info("  Modo: {}", config.cv_mode)
-    logger.info("  Amostras: {}", len(val_indices))
-    if config.cv_mode == "kfold":
-        logger.info("  Folds: {}", config.n_folds)
+    # logger.info("MÉTRICAS DE VALIDAÇÃO:")
+    # logger.info("  MSE:  {:.6e}", metrics["mse"])
+    # logger.info("  RMSE: {:.6e}", metrics["rmse"])
+    # logger.info("  MAE:  {:.6e}", metrics["mae"])
+    # #logger.info("  R²:   {:.6f}", metrics["r2"])
+
+    # logger.info("CONFIGURAÇÃO DE TREINAMENTO USADA:")
+    # logger.info("  Dataset: {} amostras", config.data.dataset_size)
+    # logger.info("  Modelo: {} hidden dim, {} layers", config.model.hidden_dim, config.model.num_layers)
+    # logger.info("  Treinamento: {} epochs (melhor em época {})", config.training.epochs, best_epoch)
+    # logger.info("  Learning rate: {:.2e}", config.training.learning_rate)
+
+    # logger.info("VALIDAÇÃO:")
+    # logger.info("  Modo: {}", config.cv_mode)
+    # logger.info("  Amostras: {}", len(val_indices))
+    # # if config.cv_mode == "kfold":
+    # #     logger.info("  Folds: {}", config.n_folds)
 
     logger.info("=" * 70)
 
     # Salvar arquivo de métricas em texto (para consulta rápida)
-    with open(exp_dir / "metrics.txt", "w") as f:
-        f.write("MÉTRICAS DE AVALIAÇÃO FINAL\n")
-        f.write("=" * 50 + "\n\n")
-        f.write(f"Dataset: {config.data.dataset_size} amostras\n")
-        f.write(f"Validação: {len(val_indices)} amostras\n")
-        f.write(f"Modo: {config.cv_mode}\n")
-        if config.cv_mode == "kfold":
-            f.write(f"Número de folds: {config.n_folds}\n")
-        f.write(f"Melhor época: {best_epoch}\n\n")
-        f.write("Métricas (valores físicos):\n")
-        f.write(f"  MSE:  {metrics['mse']:.6e}\n")
-        f.write(f"  RMSE: {metrics['rmse']:.6e}\n")
-        f.write(f"  MAE:  {metrics['mae']:.6e}\n")
-        f.write(f"  R²:   {metrics['r2']:.6f}\n")
-    logger.info("Métricas salvas em: metrics.txt")
+    # with open(exp_dir / "metrics.txt", "w") as f:
+    #     f.write("MÉTRICAS DE AVALIAÇÃO FINAL\n")
+    #     f.write("=" * 50 + "\n\n")
+    #     f.write(f"Dataset: {config.data.dataset_size} amostras\n")
+    #     f.write(f"Validação: {len(val_indices)} amostras\n")
+    #     f.write(f"Modo: {config.cv_mode}\n")
+    #     if config.cv_mode == "kfold":
+    #         f.write(f"Número de folds: {config.n_folds}\n")
+    #     f.write(f"Melhor época: {best_epoch}\n\n")
+    #     f.write("Métricas (valores físicos):\n")
+    #     f.write(f"  MSE:  {metrics['mse']:.6e}\n")
+    #     f.write(f"  RMSE: {metrics['rmse']:.6e}\n")
+    #     f.write(f"  MAE:  {metrics['mae']:.6e}\n")
+    #     #f.write(f"  R²:   {metrics['r2']:.6f}\n")
+    # logger.info("Métricas salvas em: metrics.txt")
 
-    # Salvar histórico de treinamento
-    torch.save(
-        {
-            "train_losses": train_losses,
-            "val_losses": val_losses,
-            "train_r2s": train_r2s,
-            "val_r2s": val_r2s,
-        },
-        exp_dir / "training_history.pt",
-    )
-    logger.info("Histórico de treinamento salvo em: training_history.pt")
+    # # Salvar histórico de treinamento
+    # torch.save(
+    #     {
+    #         "train_losses": train_losses,
+    #         "val_losses": val_losses,
+    #         #"train_r2s": train_r2s,
+    #         #"val_r2s": val_r2s,
+    #     },
+    #     exp_dir / "training_history.pt",
+    # )
+    # logger.info("Histórico de treinamento salvo em: training_history.pt")
 
     logger.info("")
     
